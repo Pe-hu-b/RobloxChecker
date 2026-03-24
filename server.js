@@ -37,10 +37,15 @@ passport.use(new DiscordStrategy({
     return done(null, profile);
 }));
 
+app.set("trust proxy", 1);
+
 app.use(session({
     secret: "supersecret",
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: false,
+    cookie: {
+        secure: true
+    }
 }));
 
 app.use(passport.initialize());
@@ -61,6 +66,7 @@ app.get("/auth/discord",
 app.get("/auth/discord/callback",
     passport.authenticate("discord", { failureRedirect: "/" }),
     (req, res) => {
+        console.log("✅ Logged in:", req.user?.username);
         res.redirect("/");
     }
 );
@@ -121,6 +127,11 @@ app.post("/camera", (req, res) => {
 io.on("connection", (socket) => {
     console.log("🌐 Website connected");
     socket.emit("update", players);
+});
+
+app.use((err, req, res, next) => {
+    console.error("🔥 ERROR:", err);
+    res.status(500).send("Internal Server Error");
 });
 
 const PORT = process.env.PORT || 3000;
