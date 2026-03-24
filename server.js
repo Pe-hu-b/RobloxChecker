@@ -1,7 +1,6 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const chokidar = require("chokidar");
 const path = require("path");
 
 const app = express();
@@ -14,8 +13,13 @@ const SECRET = "my_secret_key";
 
 let players = [];
 
-// serve files
+// serve static files (html, css, js)
 app.use(express.static(__dirname));
+
+// homepage route (fixes "Cannot GET /")
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "index.html"));
+});
 
 // roblox endpoint
 app.post("/roblox", (req, res) => {
@@ -25,19 +29,28 @@ app.post("/roblox", (req, res) => {
         return res.status(403).send("wrong key");
     }
 
+    // remove duplicates (same user)
+    players = players.filter(p => p.userId !== data.userId);
+
     players.push(data);
 
+    console.log("NEW PLAYER:", data);
+
+    // send update to all connected websites
     io.emit("update", players);
 
     res.send("ok");
 });
 
-// socket
+// websocket connection
 io.on("connection", (socket) => {
+    console.log("Website connected");
+
+    // send current data instantly
     socket.emit("update", players);
 });
 
-
+// REQUIRED for Render
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
