@@ -15,6 +15,7 @@ app.use(express.static(__dirname))
 const CLIENT_ID = process.env.CLIENT_ID
 const CLIENT_SECRET = process.env.CLIENT_SECRET
 const CALLBACK_URL = "https://roblox-api-x3xf.onrender.com/auth/discord/callback"
+const ENCODED_CALLBACK = encodeURIComponent(CALLBACK_URL)
 
 const ADMINS = [
     "1058895788962484294",
@@ -46,7 +47,7 @@ app.get("/", (req, res) => {
 })
 
 app.get("/auth/discord", (req, res) => {
-    const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(CALLBACK_URL)}&scope=identify`
+    const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${ENCODED_CALLBACK}&scope=identify`
     res.redirect(url)
 })
 
