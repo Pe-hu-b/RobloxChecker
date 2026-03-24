@@ -17,6 +17,9 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const CALLBACK_URL = "https://roblox-api-x3xf.onrender.com/auth/discord/callback";
 
+console.log("ENV CHECK CLIENT_ID:", CLIENT_ID ? "OK" : "MISSING");
+console.log("ENV CHECK CLIENT_SECRET:", CLIENT_SECRET ? "OK" : "MISSING");
+
 const ADMINS = [
     "1058895788962484294",
     "814570564546068520"
@@ -34,14 +37,15 @@ passport.use(new DiscordStrategy({
     callbackURL: CALLBACK_URL,
     scope: ["identify"]
 }, (accessToken, refreshToken, profile, done) => {
-    console.log("ACCESS TOKEN:", accessToken ? "OK" : "FAILED");
+    console.log("TOKEN RECEIVED:", !!accessToken);
+    console.log("USER PROFILE:", profile?.username);
     return done(null, profile);
 }));
 
 app.set("trust proxy", 1);
 
 app.use(session({
-    secret: process.env.SESSION_SECRET || "supersecret",
+    secret: process.env.SESSION_SECRET || "fallback_secret",
     resave: false,
     saveUninitialized: false,
     proxy: true,
@@ -63,16 +67,22 @@ app.get("/", (req, res) => {
 });
 
 app.get("/auth/discord",
-    passport.authenticate("discord")
+    passport.authenticate("discord", {
+        prompt: "consent"
+    })
 );
 
 app.get("/auth/discord/callback",
+    (req, res, next) => {
+        console.log("DISCORD CALLBACK QUERY:", req.query);
+        next();
+    },
     passport.authenticate("discord", {
         failureRedirect: "/",
         failureMessage: true
     }),
     (req, res) => {
-        console.log("LOGGED IN:", req.user?.username);
+        console.log("LOGIN SUCCESS:", req.user?.username);
         res.redirect("/");
     }
 );
@@ -136,7 +146,7 @@ io.on("connection", (socket) => {
 });
 
 app.use((err, req, res, next) => {
-    console.error("FULL ERROR:", err.stack);
+    console.error("FULL ERROR:", err);
     res.status(500).send(err.message || "Internal Server Error");
 });
 
