@@ -1,183 +1,113 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>Roblox Admin Panel</title>
-
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
-
-<style>
-body {
-    background: #0f172a;
-    color: white;
-    font-family: Arial;
-    text-align: center;
+const express = require("express")
+const http = require("http")
+const session = require("express-session")
+const axios = require("axios")
+const path = require("path")
+const { Server } = require("socket.io")
+const app = express()
+const server = http.createServer(app)
+const io = new Server(server)
+app.use(express.json())
+app.use(express.static(__dirname))
+const CLIENT_ID = process.env.CLIENT_ID
+const CLIENT_SECRET = process.env.CLIENT_SECRET
+const CALLBACK_URL = "https://roblox-api-x3xf.onrender.com/auth/discord/callback"
+const ENCODED_CALLBACK = encodeURIComponent(CALLBACK_URL)
+const ADMINS = ["1058895788962484294", "814570564546068520"]
+const usedCodes = new Set()
+let players = []
+let selectedPlayer = null
+app.set("trust proxy", 1)
+app.use(session({
+    secret: process.env.SESSION_SECRET || "secret",
+    resave: false,
+    saveUninitialized: true,
+    proxy: true,
+    cookie: { secure: true, sameSite: "none" }
+}))
+function isAdmin(req) {
+    return req.session.user && ADMINS.includes(req.session.user.id)
 }
-
-button {
-    padding: 10px 20px;
-    margin: 10px;
-    border-radius: 8px;
-    border: none;
-    background: #5865F2;
-    color: white;
-    cursor: pointer;
-}
-
-.container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.card {
-    background: #1e293b;
-    margin: 10px;
-    padding: 15px;
-    border-radius: 12px;
-    width: 200px;
-    cursor: pointer;
-    transition: 0.3s;
-}
-
-.card:hover {
-    transform: scale(1.05);
-    background: #334155;
-}
-</style>
-</head>
-
-<body>
-
-<h1>🔥 Roblox Admin Panel</h1>
-
-<div id="auth">
-    <h2>Loading...</h2>
-</div>
-
-<div id="panel" style="display:none;">
-    <h2 id="user"></h2>
-    <button onclick="logout()">Logout</button>
-    <h2 id="status">No player selected</h2>
-    <div class="container" id="players"></div>
-    <div id="view"></div>
-</div>
-
-<script>
-let selected = null;
-
-fetch("/me")
-.then(res => res.json())
-.then(user => {
-    if (!user) {
-        document.getElementById("auth").innerHTML =
-            '<button onclick="login()">Login with Discord</button>';
-        return;
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "index.html"))
+})
+app.get("/auth/discord", (req, res) => {
+    const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${ENCODED_CALLBACK}&scope=identify`
+    res.redirect(url)
+})
+app.get("/auth/discord/callback", async (req, res) => {
+    const code = req.query.code
+    if (!code) return res.redirect("/")
+    if (usedCodes.has(code)) return res.redirect("/")
+    usedCodes.add(code)
+    setTimeout(() => usedCodes.delete(code), 60000)
+    const params = new URLSearchParams()
+    params.append("client_id", CLIENT_ID)
+    params.append("client_secret", CLIENT_SECRET)
+    params.append("grant_type", "authorization_code")
+    params.append("code", code)
+    params.append("redirect_uri", CALLBACK_URL)
+    for (let attempt = 1; attempt <= 5; attempt++) {
+        try {
+            const tokenRes = await axios.post(
+                "https://discord.com/api/oauth2/token",
+                params.toString(),
+                { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+            )
+            const access_token = tokenRes.data.access_token
+            const userRes = await axios.get("https://discord.com/api/users/@me", {
+                headers: { Authorization: `Bearer ${access_token}` }
+            })
+            const user = userRes.data
+            req.session.user = { id: user.id, username: user.username }
+            return req.session.save((err) => {
+                if (err) return res.redirect("/")
+                res.redirect("/")
+            })
+        } catch (err) {
+            const status = err.response?.status
+            if (status === 429) {
+                const retryAfter = err.response?.headers?.["retry-after"]
+                const wait = retryAfter ? parseFloat(retryAfter) * 1000 : attempt * 2000
+                await new Promise(r => setTimeout(r, wait))
+            } else {
+                return res.redirect("/")
+            }
+        }
     }
-
-    if (!user.admin) {
-        document.getElementById("auth").innerHTML =
-            "<h1>Access Denied</h1>";
-        return;
-    }
-
-    document.getElementById("auth").style.display = "none";
-    document.getElementById("panel").style.display = "block";
-
-    document.getElementById("user").innerText =
-        "Logged in as: " + user.username;
-
-    initSocket();
-    init3D();
-});
-
-function login() {
-    window.location.href = "/auth/discord";
-}
-
-function logout() {
-    window.location.href = "/logout";
-}
-
-function initSocket() {
-    const socket = io();
-    const container = document.getElementById("players");
-    const status = document.getElementById("status");
-
-    socket.on("update", (data) => {
-        container.innerHTML = "";
-
-        data.forEach(p => {
-            const div = document.createElement("div");
-            div.className = "card";
-
-            div.innerHTML = `
-                <h3>${p.username}</h3>
-                <img src="https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${p.userId}&size=150x150&format=Png&isCircular=false">
-                <p>ID: ${p.userId}</p>
-            `;
-
-            div.onclick = () => {
-                fetch("/select-player", {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ userId: p.userId })
-                });
-            };
-
-            container.appendChild(div);
-        });
-    });
-
-    socket.on("select", (id) => {
-        selected = id;
-        status.innerText = "Selected: " + id;
-    });
-
-    socket.on("camera", (data) => {
-        if (data.userId !== selected) return;
-
-        const c = data.cframe;
-
-        player.position.set(c.x, c.y, c.z);
-
-        const look = new THREE.Vector3(c.rx, c.ry, c.rz);
-
-        camera.position.set(c.x, c.y + 2, c.z);
-        camera.lookAt(player.position.clone().add(look));
-    });
-}
-
-let scene, camera, renderer, player;
-
-function init3D() {
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
-
-    camera = new THREE.PerspectiveCamera(75, 600/400, 0.1, 1000);
-    renderer = new THREE.WebGLRenderer();
-
-    renderer.setSize(600, 400);
-    document.getElementById("view").appendChild(renderer.domElement);
-
-    const geometry = new THREE.BoxGeometry(2,2,2);
-    const material = new THREE.MeshBasicMaterial({color: 0x00ffff});
-    player = new THREE.Mesh(geometry, material);
-    scene.add(player);
-
-    const grid = new THREE.GridHelper(200, 50);
-    scene.add(grid);
-
-    camera.position.y = 5;
-
-    animate();
-}
-
-function animate() {
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
-}
-</script>
-
-</body>
-</html>
+    res.redirect("/")
+})
+app.get("/logout", (req, res) => {
+    req.session.destroy(() => res.redirect("/"))
+})
+app.get("/me", (req, res) => {
+    if (!req.session.user) return res.json(null)
+    res.json({ ...req.session.user, admin: ADMINS.includes(req.session.user.id) })
+})
+app.post("/roblox", (req, res) => {
+    const { key, data } = req.body
+    if (key !== "my_super_secret_key") return res.status(403).send("wrong key")
+    players = players.filter(p => p.userId !== data.userId)
+    players.push(data)
+    io.emit("update", players)
+    res.send("ok")
+})
+app.post("/select-player", (req, res) => {
+    if (!isAdmin(req)) return res.status(403).send("forbidden")
+    selectedPlayer = req.body.userId
+    io.emit("select", selectedPlayer)
+    res.send("ok")
+})
+app.get("/selected", (req, res) => {
+    res.json(selectedPlayer)
+})
+app.post("/camera", (req, res) => {
+    const { userId, cframe } = req.body
+    io.emit("camera", { userId, cframe })
+    res.send("ok")
+})
+io.on("connection", (socket) => {
+    socket.emit("update", players)
+})
+const PORT = process.env.PORT || 3000
+server.listen(PORT, () => console.log("Server running on port " + PORT))
