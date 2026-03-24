@@ -2,6 +2,7 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
+const rateLimit = require("express-rate-limit");
 
 const app = express();
 const server = http.createServer(app);
@@ -9,19 +10,28 @@ const io = new Server(server);
 
 app.use(express.json());
 
-const SECRET = "my_secret_key";
+// 🔐 SECRET KEY
+const SECRET = "my_super_secret_key";
 
 let players = [];
+let selectedPlayer = null;
 
-// serve static files (html, css, js)
+// 🛡️ Rate limit
+const limiter = rateLimit({
+    windowMs: 1000,
+    max: 10
+});
+app.use("/roblox", limiter);
+
+// serve site
 app.use(express.static(__dirname));
 
-// homepage route (fixes "Cannot GET /")
+// homepage
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// roblox endpoint
+// 🎮 ROBLOX SENDS DATA
 app.post("/roblox", (req, res) => {
     const { key, data } = req.body;
 
@@ -29,28 +39,38 @@ app.post("/roblox", (req, res) => {
         return res.status(403).send("wrong key");
     }
 
-    // remove duplicates (same user)
     players = players.filter(p => p.userId !== data.userId);
-
     players.push(data);
 
-    console.log("NEW PLAYER:", data);
+    console.log("PLAYER:", data);
 
-    // send update to all connected websites
     io.emit("update", players);
 
     res.send("ok");
 });
 
-// websocket connection
-io.on("connection", (socket) => {
-    console.log("Website connected");
+// 🖱️ WEBSITE SELECTS PLAYER
+app.post("/select-player", (req, res) => {
+    selectedPlayer = req.body.userId;
 
-    // send current data instantly
+    console.log("SELECTED:", selectedPlayer);
+
+    io.emit("select", selectedPlayer);
+
+    res.send("ok");
+});
+
+// 📡 ROBLOX POLLS SELECTED PLAYER
+app.get("/selected", (req, res) => {
+    res.json(selectedPlayer);
+});
+
+// 🔌 SOCKET
+io.on("connection", (socket) => {
     socket.emit("update", players);
 });
 
-// REQUIRED for Render
+// REQUIRED FOR RENDER
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
