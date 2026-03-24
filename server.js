@@ -14,7 +14,7 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 const CLIENT_ID = "1486005242846908507";
-const CLIENT_SECRET = "aCeIBsiWz4x9ihVQuHNMqLa_uQs29tUk";
+const CLIENT_SECRET = "REPLACE_THIS_NOW";
 const CALLBACK_URL = "https://roblox-api-x3xf.onrender.com/auth/discord/callback";
 
 const ADMINS = [
@@ -44,7 +44,8 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: true
+        secure: true,
+        sameSite: "none"
     }
 }));
 
@@ -130,8 +131,8 @@ io.on("connection", (socket) => {
 });
 
 app.use((err, req, res, next) => {
-    console.error("🔥 ERROR:", err);
-    res.status(500).send("Internal Server Error");
+    console.error("🔥 FULL ERROR:", err.stack);
+    res.status(500).send(err.stack);
 });
 
 const PORT = process.env.PORT || 3000;
