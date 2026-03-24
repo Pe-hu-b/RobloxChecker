@@ -18,8 +18,8 @@ const CLIENT_SECRET = "aCeIBsiWz4x9ihVQuHNMqLa_uQs29tUk";
 const CALLBACK_URL = "https://roblox-api-x3xf.onrender.com/auth/discord/callback";
 
 const ADMINS = [
-    "123456789012345678",
-    "987654321098765432"
+    "1058895788962484294",
+    "814570564546068520"
 ];
 
 let players = [];
