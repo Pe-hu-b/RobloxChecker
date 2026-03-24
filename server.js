@@ -17,8 +17,9 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const CALLBACK_URL = "https://roblox-api-x3xf.onrender.com/auth/discord/callback";
 
-console.log("ENV CHECK CLIENT_ID:", CLIENT_ID ? "OK" : "MISSING");
-console.log("ENV CHECK CLIENT_SECRET:", CLIENT_SECRET ? "OK" : "MISSING");
+console.log("CLIENT_ID:", CLIENT_ID);
+console.log("CLIENT_SECRET:", CLIENT_SECRET ? "SET" : "MISSING");
+console.log("CALLBACK_URL:", CALLBACK_URL);
 
 const ADMINS = [
     "1058895788962484294",
@@ -37,8 +38,8 @@ passport.use(new DiscordStrategy({
     callbackURL: CALLBACK_URL,
     scope: ["identify"]
 }, (accessToken, refreshToken, profile, done) => {
-    console.log("TOKEN RECEIVED:", !!accessToken);
-    console.log("USER PROFILE:", profile?.username);
+    console.log("ACCESS TOKEN RECEIVED:", !!accessToken);
+    console.log("USER:", profile?.username);
     return done(null, profile);
 }));
 
@@ -55,6 +56,11 @@ app.use(session({
     }
 }));
 
+app.use((req, res, next) => {
+    console.log("SESSION:", req.sessionID);
+    next();
+});
+
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -67,19 +73,23 @@ app.get("/", (req, res) => {
 });
 
 app.get("/auth/discord",
+    (req, res, next) => {
+        console.log("STARTING DISCORD AUTH");
+        next();
+    },
     passport.authenticate("discord", {
+        scope: ["identify"],
         prompt: "consent"
     })
 );
 
 app.get("/auth/discord/callback",
     (req, res, next) => {
-        console.log("DISCORD CALLBACK QUERY:", req.query);
+        console.log("CALLBACK QUERY:", req.query);
         next();
     },
     passport.authenticate("discord", {
-        failureRedirect: "/",
-        failureMessage: true
+        failureRedirect: "/"
     }),
     (req, res) => {
         console.log("LOGIN SUCCESS:", req.user?.username);
