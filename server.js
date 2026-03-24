@@ -1,78 +1,88 @@
 const express = require("express");
 const http = require("http");
-const { Server } = require("socket.io");
+const session = require("express-session");
+const passport = require("passport");
+const DiscordStrategy = require("passport-discord").Strategy;
 const path = require("path");
-const rateLimit = require("express-rate-limit");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
 
-app.use(express.json());
+const CLIENT_ID = "YOUR_CLIENT_ID";
+const CLIENT_SECRET = "YOUR_CLIENT_SECRET";
+const CALLBACK_URL = "https://roblox-api-x3xf.onrender.com/auth/discord/callback";
 
-// 🔐 SECRET KEY
-const SECRET = "my_super_secret_key";
+const ADMINS = [
+    "123456789012345678",
+    "987654321098765432"
+];
 
-let players = [];
-let selectedPlayer = null;
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((obj, done) => done(null, obj));
 
-// 🛡️ Rate limit
-const limiter = rateLimit({
-    windowMs: 1000,
-    max: 10
-});
-app.use("/roblox", limiter);
+passport.use(new DiscordStrategy({
+    clientID: CLIENT_ID,
+    clientSecret: CLIENT_SECRET,
+    callbackURL: CALLBACK_URL,
+    scope: ["identify"]
+}, (accessToken, refreshToken, profile, done) => {
+    return done(null, profile);
+}));
 
-// serve site
+app.use(session({
+    secret: "supersecret",
+    resave: false,
+    saveUninitialized: false
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
 app.use(express.static(__dirname));
 
-// homepage
+function isAdmin(req) {
+    return req.user && ADMINS.includes(req.user.id);
+}
+
 app.get("/", (req, res) => {
+    if (!req.user) {
+        return res.sendFile(path.join(__dirname, "login.html"));
+    }
+
+    if (!isAdmin(req)) {
+        return res.send("Access denied");
+    }
+
     res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// 🎮 ROBLOX SENDS DATA
-app.post("/roblox", (req, res) => {
-    const { key, data } = req.body;
+app.get("/auth/discord",
+    passport.authenticate("discord")
+);
 
-    if (key !== SECRET) {
-        return res.status(403).send("wrong key");
+app.get("/auth/discord/callback",
+    passport.authenticate("discord", { failureRedirect: "/" }),
+    (req, res) => {
+        res.redirect("/");
     }
+);
 
-    players = players.filter(p => p.userId !== data.userId);
-    players.push(data);
-
-    console.log("PLAYER:", data);
-
-    io.emit("update", players);
-
-    res.send("ok");
+app.get("/logout", (req, res) => {
+    req.logout(() => {
+        res.redirect("/");
+    });
 });
 
-// 🖱️ WEBSITE SELECTS PLAYER
-app.post("/select-player", (req, res) => {
-    selectedPlayer = req.body.userId;
+app.get("/me", (req, res) => {
+    if (!req.user) return res.json(null);
 
-    console.log("SELECTED:", selectedPlayer);
-
-    io.emit("select", selectedPlayer);
-
-    res.send("ok");
+    res.json({
+        id: req.user.id,
+        username: req.user.username,
+        admin: ADMINS.includes(req.user.id)
+    });
 });
 
-// 📡 ROBLOX POLLS SELECTED PLAYER
-app.get("/selected", (req, res) => {
-    res.json(selectedPlayer);
-});
-
-// 🔌 SOCKET
-io.on("connection", (socket) => {
-    socket.emit("update", players);
-});
-
-// REQUIRED FOR RENDER
-const PORT = process.env.PORT || 3000;
-
-server.listen(PORT, () => {
-    console.log("Server running on port " + PORT);
+app.listen(process.env.PORT || 3000, () => {
+    console.log("Server running");
 });
