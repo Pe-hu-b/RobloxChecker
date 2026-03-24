@@ -13,8 +13,8 @@ const io = new Server(server);
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const CLIENT_ID = "YOUR_CLIENT_ID";
-const CLIENT_SECRET = "YOUR_CLIENT_SECRET";
+const CLIENT_ID = "1486005242846908507";
+const CLIENT_SECRET = "aCeIBsiWz4x9ihVQuHNMqLa_uQs29tUk";
 const CALLBACK_URL = "https://roblox-api-x3xf.onrender.com/auth/discord/callback";
 
 const ADMINS = [
