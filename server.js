@@ -1,8 +1,7 @@
 const express = require("express");
 const http = require("http");
 const session = require("express-session");
-const passport = require("passport");
-const DiscordStrategy = require("passport-discord").Strategy;
+const axios = require("axios");
 const path = require("path");
 const { Server } = require("socket.io");
 
@@ -17,10 +16,6 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const CALLBACK_URL = "https://roblox-api-x3xf.onrender.com/auth/discord/callback";
 
-console.log("CLIENT_ID:", CLIENT_ID);
-console.log("CLIENT_SECRET:", CLIENT_SECRET ? "SET" : "MISSING");
-console.log("CALLBACK_URL:", CALLBACK_URL);
-
 const ADMINS = [
     "1058895788962484294",
     "814570564546068520"
@@ -29,24 +24,10 @@ const ADMINS = [
 let players = [];
 let selectedPlayer = null;
 
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((obj, done) => done(null, obj));
-
-passport.use(new DiscordStrategy({
-    clientID: CLIENT_ID,
-    clientSecret: CLIENT_SECRET,
-    callbackURL: CALLBACK_URL,
-    scope: ["identify"]
-}, (accessToken, refreshToken, profile, done) => {
-    console.log("ACCESS TOKEN RECEIVED:", !!accessToken);
-    console.log("USER:", profile?.username);
-    return done(null, profile);
-}));
-
 app.set("trust proxy", 1);
 
 app.use(session({
-    secret: process.env.SESSION_SECRET || "fallback_secret",
+    secret: process.env.SESSION_SECRET || "secret",
     resave: false,
     saveUninitialized: false,
     proxy: true,
@@ -56,60 +37,73 @@ app.use(session({
     }
 }));
 
-app.use((req, res, next) => {
-    console.log("SESSION:", req.sessionID);
-    next();
-});
-
-app.use(passport.initialize());
-app.use(passport.session());
-
 function isAdmin(req) {
-    return req.user && ADMINS.includes(req.user.id);
+    return req.session.user && ADMINS.includes(req.session.user.id);
 }
 
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "index.html"));
 });
 
-app.get("/auth/discord",
-    (req, res, next) => {
-        console.log("STARTING DISCORD AUTH");
-        next();
-    },
-    passport.authenticate("discord", {
-        scope: ["identify"],
-        prompt: "consent"
-    })
-);
+app.get("/auth/discord", (req, res) => {
+    const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(CALLBACK_URL)}&scope=identify`;
+    res.redirect(url);
+});
 
-app.get("/auth/discord/callback",
-    (req, res, next) => {
-        console.log("CALLBACK QUERY:", req.query);
-        next();
-    },
-    passport.authenticate("discord", {
-        failureRedirect: "/"
-    }),
-    (req, res) => {
-        console.log("LOGIN SUCCESS:", req.user?.username);
+app.get("/auth/discord/callback", async (req, res) => {
+    const code = req.query.code;
+
+    if (!code) return res.send("No code provided");
+
+    try {
+        const tokenRes = await axios.post("https://discord.com/api/oauth2/token", new URLSearchParams({
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
+            grant_type: "authorization_code",
+            code: code,
+            redirect_uri: CALLBACK_URL
+        }), {
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+        });
+
+        const access_token = tokenRes.data.access_token;
+
+        const userRes = await axios.get("https://discord.com/api/users/@me", {
+            headers: {
+                Authorization: `Bearer ${access_token}`
+            }
+        });
+
+        const user = userRes.data;
+
+        req.session.user = {
+            id: user.id,
+            username: user.username
+        };
+
+        console.log("LOGIN SUCCESS:", user.username);
+
         res.redirect("/");
+    } catch (err) {
+        console.error("OAUTH ERROR:", err.response?.data || err.message);
+        res.send("OAuth failed");
     }
-);
+});
 
 app.get("/logout", (req, res) => {
-    req.logout(() => {
+    req.session.destroy(() => {
         res.redirect("/");
     });
 });
 
 app.get("/me", (req, res) => {
-    if (!req.user) return res.json(null);
+    if (!req.session.user) return res.json(null);
 
     res.json({
-        id: req.user.id,
-        username: req.user.username,
-        admin: ADMINS.includes(req.user.id)
+        ...req.session.user,
+        admin: ADMINS.includes(req.session.user.id)
     });
 });
 
@@ -153,11 +147,6 @@ app.post("/camera", (req, res) => {
 io.on("connection", (socket) => {
     console.log("Website connected");
     socket.emit("update", players);
-});
-
-app.use((err, req, res, next) => {
-    console.error("FULL ERROR:", err);
-    res.status(500).send(err.message || "Internal Server Error");
 });
 
 const PORT = process.env.PORT || 3000;
