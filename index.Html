@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Roblox Dashboard</title>
+
+<style>
+body {
+    background: #0f172a;
+    color: white;
+    font-family: Arial;
+    text-align: center;
+}
+
+h1 {
+    margin-top: 20px;
+}
+
+.container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.card {
+    background: #1e293b;
+    margin: 10px;
+    padding: 15px;
+    border-radius: 12px;
+    width: 200px;
+    transition: 0.3s;
+    animation: fadeIn 0.5s ease;
+}
+
+.card:hover {
+    transform: scale(1.05);
+    background: #334155;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+</head>
+
+<body>
+
+<h1>🔥 Roblox Showcase</h1>
+
+<div class="container" id="players"></div>
+
+<script>
+async function loadData() {
+    const res = await fetch("/data");
+    const data = await res.json();
+
+    const container = document.getElementById("players");
+    container.innerHTML = "";
+
+    data.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "card";
+
+        div.innerHTML = `
+            <h3>${p.username}</h3>
+            <p>ID: ${p.userId}</p>
+            <p>Time: ${new Date(p.time * 1000).toLocaleTimeString()}</p>
+        `;
+
+        container.appendChild(div);
+    });
+}
+
+// refresh every 2 seconds
+setInterval(loadData, 2000);
+loadData();
+</script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+<script>
+const socket = io();
+
+// 🔥 RELOAD WHEN FILE CHANGES
+socket.on("reload", () => {
+    console.log("🔄 Reloading...");
+    location.reload();
+});
+</script>
+</body>
+</html>
