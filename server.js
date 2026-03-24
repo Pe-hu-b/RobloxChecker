@@ -13,8 +13,8 @@ const io = new Server(server);
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const CLIENT_ID = "1486005242846908507";
-const CLIENT_SECRET = "aCeIBsiWz4x9ihVQuHNMqLa_uQs29tUk";
+const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const CALLBACK_URL = "https://roblox-api-x3xf.onrender.com/auth/discord/callback";
 
 const ADMINS = [
@@ -34,15 +34,17 @@ passport.use(new DiscordStrategy({
     callbackURL: CALLBACK_URL,
     scope: ["identify"]
 }, (accessToken, refreshToken, profile, done) => {
+    console.log("ACCESS TOKEN:", accessToken ? "OK" : "FAILED");
     return done(null, profile);
 }));
 
 app.set("trust proxy", 1);
 
 app.use(session({
-    secret: "supersecret",
+    secret: process.env.SESSION_SECRET || "supersecret",
     resave: false,
     saveUninitialized: false,
+    proxy: true,
     cookie: {
         secure: true,
         sameSite: "none"
@@ -65,9 +67,12 @@ app.get("/auth/discord",
 );
 
 app.get("/auth/discord/callback",
-    passport.authenticate("discord", { failureRedirect: "/" }),
+    passport.authenticate("discord", {
+        failureRedirect: "/",
+        failureMessage: true
+    }),
     (req, res) => {
-        console.log("✅ Logged in:", req.user?.username);
+        console.log("LOGGED IN:", req.user?.username);
         res.redirect("/");
     }
 );
@@ -126,13 +131,13 @@ app.post("/camera", (req, res) => {
 });
 
 io.on("connection", (socket) => {
-    console.log("🌐 Website connected");
+    console.log("Website connected");
     socket.emit("update", players);
 });
 
 app.use((err, req, res, next) => {
-    console.error("🔥 FULL ERROR:", err.stack);
-    res.status(500).send(err.stack);
+    console.error("FULL ERROR:", err.stack);
+    res.status(500).send(err.message || "Internal Server Error");
 });
 
 const PORT = process.env.PORT || 3000;
