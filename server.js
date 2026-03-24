@@ -4,9 +4,14 @@ const session = require("express-session");
 const passport = require("passport");
 const DiscordStrategy = require("passport-discord").Strategy;
 const path = require("path");
+const { Server } = require("socket.io");
 
 const app = express();
 const server = http.createServer(app);
+const io = new Server(server);
+
+app.use(express.json());
+app.use(express.static(__dirname));
 
 const CLIENT_ID = "YOUR_CLIENT_ID";
 const CLIENT_SECRET = "YOUR_CLIENT_SECRET";
@@ -16,6 +21,9 @@ const ADMINS = [
     "123456789012345678",
     "987654321098765432"
 ];
+
+let players = [];
+let selectedPlayer = null;
 
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((obj, done) => done(null, obj));
@@ -38,21 +46,11 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.use(express.static(__dirname));
-
 function isAdmin(req) {
     return req.user && ADMINS.includes(req.user.id);
 }
 
 app.get("/", (req, res) => {
-    if (!req.user) {
-        return res.sendFile(path.join(__dirname, "login.html"));
-    }
-
-    if (!isAdmin(req)) {
-        return res.send("Access denied");
-    }
-
     res.sendFile(path.join(__dirname, "index.html"));
 });
 
@@ -83,6 +81,50 @@ app.get("/me", (req, res) => {
     });
 });
 
-app.listen(process.env.PORT || 3000, () => {
-    console.log("Server running");
+app.post("/roblox", (req, res) => {
+    const { key, data } = req.body;
+
+    if (key !== "my_super_secret_key") {
+        return res.status(403).send("wrong key");
+    }
+
+    players = players.filter(p => p.userId !== data.userId);
+    players.push(data);
+
+    io.emit("update", players);
+
+    res.send("ok");
+});
+
+app.post("/select-player", (req, res) => {
+    if (!isAdmin(req)) return res.status(403).send("forbidden");
+
+    selectedPlayer = req.body.userId;
+
+    io.emit("select", selectedPlayer);
+
+    res.send("ok");
+});
+
+app.get("/selected", (req, res) => {
+    res.json(selectedPlayer);
+});
+
+app.post("/camera", (req, res) => {
+    const { userId, cframe } = req.body;
+
+    io.emit("camera", { userId, cframe });
+
+    res.send("ok");
+});
+
+io.on("connection", (socket) => {
+    console.log("🌐 Website connected");
+    socket.emit("update", players);
+});
+
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, () => {
+    console.log("Server running on port " + PORT);
 });
