@@ -21,7 +21,7 @@ app.set("trust proxy", 1)
 app.use(session({
     secret: process.env.SESSION_SECRET || "secret",
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true,
     proxy: true,
     cookie: { secure: true, sameSite: "none" }
 }))
@@ -37,8 +37,8 @@ app.get("/auth/discord", (req, res) => {
 })
 app.get("/auth/discord/callback", async (req, res) => {
     const code = req.query.code
-    if (!code) return res.redirect("/")
-    if (usedCodes.has(code)) return res.redirect("/")
+    if (!code) return res.send(`<script>window.location.href="/"</script>`)
+    if (usedCodes.has(code)) return res.send(`<script>window.location.href="/"</script>`)
     usedCodes.add(code)
     setTimeout(() => usedCodes.delete(code), 60000)
     const params = new URLSearchParams()
@@ -61,8 +61,8 @@ app.get("/auth/discord/callback", async (req, res) => {
             const user = userRes.data
             req.session.user = { id: user.id, username: user.username }
             return req.session.save((err) => {
-                if (err) return res.redirect("/")
-                res.redirect("/")
+                if (err) return res.send(`<script>window.location.href="/"</script>`)
+                res.send(`<script>window.location.href="/"</script>`)
             })
         } catch (err) {
             const status = err.response?.status
@@ -71,14 +71,14 @@ app.get("/auth/discord/callback", async (req, res) => {
                 const wait = retryAfter ? parseFloat(retryAfter) * 1000 : attempt * 2000
                 await new Promise(r => setTimeout(r, wait))
             } else {
-                return res.redirect("/")
+                return res.send(`<script>window.location.href="/"</script>`)
             }
         }
     }
-    res.redirect("/")
+    res.send(`<script>window.location.href="/"</script>`)
 })
 app.get("/logout", (req, res) => {
-    req.session.destroy(() => res.redirect("/"))
+    req.session.destroy(() => res.send(`<script>window.location.href="/"</script>`))
 })
 app.get("/me", (req, res) => {
     if (!req.session.user) return res.json(null)
