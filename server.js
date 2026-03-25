@@ -26,18 +26,11 @@ let selectedPlayer = null
 function getUser(req) {
     try {
         const cookieHeader = req.headers.cookie || ""
-        console.log("[GETUSER] Raw cookies:", cookieHeader)
         const tokenCookie = cookieHeader.split(";").find(c => c.trim().startsWith("token="))
-        if (!tokenCookie) {
-            console.log("[GETUSER] No token cookie found")
-            return null
-        }
+        if (!tokenCookie) return null
         const token = tokenCookie.split("=")[1]
-        const user = jwt.verify(token, JWT_SECRET)
-        console.log("[GETUSER] Verified user:", user.id, user.username)
-        return user
+        return jwt.verify(token, JWT_SECRET)
     } catch (e) {
-        console.log("[GETUSER] JWT verify failed:", e.message)
         return null
     }
 }
@@ -52,7 +45,6 @@ app.get("/", (req, res) => {
 })
 
 app.get("/auth/discord", (req, res) => {
-    console.log("[AUTH] Starting Discord OAuth. CLIENT_ID set:", !!CLIENT_ID)
     const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${ENCODED_CALLBACK}&scope=identify`
     res.redirect(url)
 })
@@ -60,84 +52,53 @@ app.get("/auth/discord", (req, res) => {
 app.get("/auth/discord/callback", async (req, res) => {
     const code = req.query.code
     console.log("[CALLBACK] Hit. Code:", code ? code.substring(0, 10) + "..." : "MISSING")
-
-    if (!code) {
-        console.log("[CALLBACK] No code, redirecting home")
-        return res.redirect("/")
-    }
-    if (usedCodes.has(code)) {
-        console.log("[CALLBACK] Duplicate code, redirecting home")
-        return res.send(`<script>window.location.href="/"</script>`)
-    }
+    if (!code) return res.redirect("/")
+    if (usedCodes.has(code)) return res.send(`<script>window.location.href="/"</script>`)
     usedCodes.add(code)
     setTimeout(() => usedCodes.delete(code), 60000)
-
-    const params = new URLSearchParams()
-    params.append("client_id", CLIENT_ID)
-    params.append("client_secret", CLIENT_SECRET)
-    params.append("grant_type", "authorization_code")
-    params.append("code", code)
-    params.append("redirect_uri", CALLBACK_URL)
-
-    for (let attempt = 1; attempt <= 5; attempt++) {
-        try {
-            console.log(`[CALLBACK] Token exchange attempt ${attempt}`)
-            const tokenRes = await axios.post(
-                "https://discord.com/api/oauth2/token",
-                params.toString(),
-                { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-            )
-            console.log("[CALLBACK] Token exchange success")
-
-            const userRes = await axios.get("https://discord.com/api/users/@me", {
-                headers: { Authorization: `Bearer ${tokenRes.data.access_token}` }
-            })
-            const user = userRes.data
-            console.log("[CALLBACK] Got Discord user:", user.id, user.username)
-
-            const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: "7d" })
-            console.log("[CALLBACK] JWT created, setting cookie and redirecting")
-
-            res.setHeader("Set-Cookie", `token=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=604800`)
-            return res.send(`<script>window.location.href="/"</script>`)
-        } catch (err) {
-            const status = err.response?.status
-            console.error(`[CALLBACK] Attempt ${attempt} failed. Status: ${status}, Message: ${err.message}`)
-            console.error(`[CALLBACK] Discord error:`, JSON.stringify(err.response?.data))
-            if (status === 429) {
-                const wait = err.response?.headers?.["retry-after"] ? parseFloat(err.response.headers["retry-after"]) * 1000 : attempt * 2000
-                console.log(`[CALLBACK] Rate limited, waiting ${wait}ms`)
-                await new Promise(r => setTimeout(r, wait))
-            } else {
-                return res.send(`
-                    <h2>Auth Failed</h2>
-                    <p>Status: ${status}</p>
-                    <p>Error: ${err.response?.data?.error ?? "N/A"}</p>
-                    <p>Description: ${err.response?.data?.error_description ?? err.message}</p>
-                    <a href="/">Go back</a>
-                `)
-            }
-        }
+    try {
+        const params = new URLSearchParams()
+        params.append("client_id", CLIENT_ID)
+        params.append("client_secret", CLIENT_SECRET)
+        params.append("grant_type", "authorization_code")
+        params.append("code", code)
+        params.append("redirect_uri", CALLBACK_URL)
+        const tokenRes = await axios.post(
+            "https://discord.com/api/oauth2/token",
+            params.toString(),
+            { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+        )
+        console.log("[CALLBACK] Token exchange success")
+        const userRes = await axios.get("https://discord.com/api/users/@me", {
+            headers: { Authorization: `Bearer ${tokenRes.data.access_token}` }
+        })
+        const user = userRes.data
+        console.log("[CALLBACK] Got user:", user.id, user.username)
+        const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: "7d" })
+        res.setHeader("Set-Cookie", `token=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=604800`)
+        return res.send(`<script>window.location.href="/"</script>`)
+    } catch (err) {
+        const status = err.response?.status
+        console.error("[CALLBACK] Failed. Status:", status, "Error:", JSON.stringify(err.response?.data))
+        return res.send(`
+            <h2>Auth Failed</h2>
+            <p>Status: ${status}</p>
+            <p>Error: ${err.response?.data?.error ?? "N/A"}</p>
+            <p>Description: ${err.response?.data?.error_description ?? err.message}</p>
+            <a href="/">Go back</a>
+        `)
     }
-    res.send(`<h2>Rate limited by Discord. Wait a minute and <a href="/">try again</a>.</h2>`)
 })
 
 app.get("/logout", (req, res) => {
-    console.log("[LOGOUT] Clearing cookie")
     res.setHeader("Set-Cookie", "token=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0")
     res.send(`<script>window.location.href="/"</script>`)
 })
 
 app.get("/me", (req, res) => {
-    console.log("[ME] Request received")
     const user = getUser(req)
-    if (!user) {
-        console.log("[ME] No user, returning null")
-        return res.json(null)
-    }
-    const response = { id: user.id, username: user.username, admin: ADMINS.includes(user.id) }
-    console.log("[ME] Returning user:", response)
-    res.json(response)
+    if (!user) return res.json(null)
+    res.json({ id: user.id, username: user.username, admin: ADMINS.includes(user.id) })
 })
 
 app.post("/roblox", (req, res) => {
@@ -175,6 +136,4 @@ server.listen(PORT, () => {
     console.log("[SERVER] Running on port " + PORT)
     console.log("[SERVER] CLIENT_ID set:", !!CLIENT_ID)
     console.log("[SERVER] CLIENT_SECRET set:", !!CLIENT_SECRET)
-    console.log("[SERVER] JWT_SECRET set:", !!JWT_SECRET)
-    console.log("[SERVER] CALLBACK_URL:", CALLBACK_URL)
 })
