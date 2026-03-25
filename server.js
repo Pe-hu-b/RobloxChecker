@@ -15,10 +15,14 @@ app.use(express.static(__dirname))
 const CLIENT_ID = process.env.CLIENT_ID
 const CLIENT_SECRET = process.env.CLIENT_SECRET
 const JWT_SECRET = process.env.SESSION_SECRET || "secret"
+
 const CALLBACK_URL = "https://roblox-api-x3xf.onrender.com/auth/discord/callback"
 const ENCODED_CALLBACK = encodeURIComponent(CALLBACK_URL)
+
 const ADMINS = ["1058895788962484294", "814570564546068520"]
+
 const usedCodes = new Set()
+const activeExchanges = new Set()
 
 let players = []
 let selectedPlayer = null
@@ -30,7 +34,7 @@ function getUser(req) {
         if (!tokenCookie) return null
         const token = tokenCookie.split("=")[1]
         return jwt.verify(token, JWT_SECRET)
-    } catch (e) {
+    } catch {
         return null
     }
 }
@@ -51,11 +55,20 @@ app.get("/auth/discord", (req, res) => {
 
 app.get("/auth/discord/callback", async (req, res) => {
     const code = req.query.code
-    console.log("[CALLBACK] Hit. Code:", code ? code.substring(0, 10) + "..." : "MISSING")
-    if (!code) return res.redirect("/")
-    if (usedCodes.has(code)) return res.send(`<script>window.location.href="/"</script>`)
-    usedCodes.add(code)
-    setTimeout(() => usedCodes.delete(code), 60000)
+
+    console.log("[CALLBACK] Hit:", code ? code.slice(0, 8) : "NO CODE")
+
+    if (!code || typeof code !== "string") {
+        return res.redirect("/")
+    }
+
+    if (usedCodes.has(code) || activeExchanges.has(code)) {
+        console.log("[CALLBACK] Duplicate blocked:", code.slice(0, 8))
+        return res.redirect("/")
+    }
+
+    activeExchanges.add(code)
+
     try {
         const params = new URLSearchParams()
         params.append("client_id", CLIENT_ID)
@@ -63,23 +76,51 @@ app.get("/auth/discord/callback", async (req, res) => {
         params.append("grant_type", "authorization_code")
         params.append("code", code)
         params.append("redirect_uri", CALLBACK_URL)
+
+        await new Promise(r => setTimeout(r, 250))
+
         const tokenRes = await axios.post(
             "https://discord.com/api/oauth2/token",
             params.toString(),
-            { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+            {
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                }
+            }
         )
-        console.log("[CALLBACK] Token exchange success")
+
+        console.log("[CALLBACK] Token success")
+
         const userRes = await axios.get("https://discord.com/api/users/@me", {
-            headers: { Authorization: `Bearer ${tokenRes.data.access_token}` }
+            headers: {
+                Authorization: `Bearer ${tokenRes.data.access_token}`
+            }
         })
+
         const user = userRes.data
-        console.log("[CALLBACK] Got user:", user.id, user.username)
-        const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: "7d" })
-        res.setHeader("Set-Cookie", `token=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=604800`)
-        return res.send(`<script>window.location.href="/"</script>`)
+
+        console.log("[CALLBACK] User:", user.id, user.username)
+
+        usedCodes.add(code)
+        setTimeout(() => usedCodes.delete(code), 60000)
+
+        const token = jwt.sign(
+            { id: user.id, username: user.username },
+            JWT_SECRET,
+            { expiresIn: "7d" }
+        )
+
+        res.setHeader(
+            "Set-Cookie",
+            `token=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=604800`
+        )
+
+        return res.redirect("/")
     } catch (err) {
         const status = err.response?.status
-        console.error("[CALLBACK] Failed. Status:", status, "Error:", JSON.stringify(err.response?.data))
+
+        console.error("[CALLBACK] ERROR:", status, err.response?.data)
+
         return res.send(`
             <h2>Auth Failed</h2>
             <p>Status: ${status}</p>
@@ -87,33 +128,47 @@ app.get("/auth/discord/callback", async (req, res) => {
             <p>Description: ${err.response?.data?.error_description ?? err.message}</p>
             <a href="/">Go back</a>
         `)
+    } finally {
+        activeExchanges.delete(code)
     }
 })
 
 app.get("/logout", (req, res) => {
-    res.setHeader("Set-Cookie", "token=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0")
-    res.send(`<script>window.location.href="/"</script>`)
+    res.setHeader(
+        "Set-Cookie",
+        "token=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0"
+    )
+    res.redirect("/")
 })
 
 app.get("/me", (req, res) => {
     const user = getUser(req)
     if (!user) return res.json(null)
-    res.json({ id: user.id, username: user.username, admin: ADMINS.includes(user.id) })
+    res.json({
+        id: user.id,
+        username: user.username,
+        admin: ADMINS.includes(user.id)
+    })
 })
 
 app.post("/roblox", (req, res) => {
     const { key, data } = req.body
     if (key !== "my_super_secret_key") return res.status(403).send("wrong key")
+
     players = players.filter(p => p.userId !== data.userId)
     players.push(data)
+
     io.emit("update", players)
+
     res.send("ok")
 })
 
 app.post("/select-player", (req, res) => {
     if (!isAdmin(req)) return res.status(403).send("forbidden")
+
     selectedPlayer = req.body.userId
     io.emit("select", selectedPlayer)
+
     res.send("ok")
 })
 
@@ -132,6 +187,7 @@ io.on("connection", (socket) => {
 })
 
 const PORT = process.env.PORT || 3000
+
 server.listen(PORT, () => {
     console.log("[SERVER] Running on port " + PORT)
     console.log("[SERVER] CLIENT_ID set:", !!CLIENT_ID)
