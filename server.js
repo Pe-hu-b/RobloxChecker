@@ -15,7 +15,7 @@ app.use(express.static(__dirname))
 const CLIENT_ID = process.env.CLIENT_ID
 const CLIENT_SECRET = process.env.CLIENT_SECRET
 const JWT_SECRET = process.env.SESSION_SECRET || "secret"
-const CALLBACK_URL = "https://roblox-api-x3xf.onrender.com/auth/discord/callback"
+const CALLBACK_URL = "https://robloxchecker-45zx.onrender.com/auth/discord/callback"
 const ENCODED_CALLBACK = encodeURIComponent(CALLBACK_URL)
 const ADMINS = ["1058895788962484294", "814570564546068520"]
 const usedCodes = new Set()
