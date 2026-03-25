@@ -178,15 +178,3 @@ server.listen(PORT, () => {
     console.log("[SERVER] JWT_SECRET set:", !!JWT_SECRET)
     console.log("[SERVER] CALLBACK_URL:", CALLBACK_URL)
 })
-```
-
-After you deploy this, open the Render logs and try logging in. You should see a chain like:
-```
-[AUTH] Starting Discord OAuth
-[CALLBACK] Hit. Code: 9p3voSRX...
-[CALLBACK] Token exchange attempt 1
-[CALLBACK] Token exchange success
-[CALLBACK] Got Discord user: 123456 username
-[CALLBACK] JWT created, setting cookie and redirecting
-[ME] Request received
-[ME] Returning user: { id: ..., admin: true }
