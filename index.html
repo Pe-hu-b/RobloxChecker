@@ -277,7 +277,7 @@ h1 {
     <section class="hero">
         <p class="eyebrow">Roblox Authorization</p>
         <h1>Admin access now runs through your Roblox place.</h1>
-        <p class="subtitle">Discord login is gone. To get into the panel, generate a one-time code here, join the authorization place, and type the code in Roblox chat from an allowed account.</p>
+        <p class="subtitle">To get into the panel, generate a one-time code here, join the authorization place, and enter the code in the in-game textbox from an allowed account.</p>
     </section>
 
     <div id="authView" class="grid">
@@ -305,7 +305,7 @@ h1 {
             <ol class="steps">
                 <li>Press the button to generate a code.</li>
                 <li>Join the authorization place: <a href="https://www.roblox.com/games/74772093792198/Authorization" target="_blank" rel="noreferrer" style="color:#86efac;">Authorization</a>.</li>
-                <li>In Roblox chat, type <strong id="chatCommand">!auth 000000</strong>.</li>
+                <li>Enter <strong id="chatCommand">000000</strong> into the textbox in the game and press Enter.</li>
                 <li>Come back here and wait for the panel to unlock.</li>
             </ol>
             <p class="muted" id="expiresText">Codes expire after 5 minutes.</p>
@@ -386,7 +386,7 @@ async function startRobloxLogin() {
 
         authRequestId = data.requestId
         document.getElementById("authCode").textContent = data.code
-        document.getElementById("chatCommand").textContent = "!auth " + data.code
+        document.getElementById("chatCommand").textContent = data.code
         document.getElementById("codeBox").style.display = "block"
         document.getElementById("loginStatus").style.display = "inline-flex"
         document.getElementById("loginStatus").textContent = "Waiting for Roblox verification..."
