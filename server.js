@@ -16,13 +16,14 @@ app.use(express.static(__dirname))
 const JWT_SECRET = process.env.SESSION_SECRET || "secret"
 const GAME_SHARED_KEY = process.env.ROBLOX_GAME_KEY || "change-this-key"
 const ALLOWED_ROBLOX_IDS = new Set(["1280770559", "1479207099"])
-const AUTH_PLACE_ID = "74772093792198"
+const AUTH_PLACE_ID = String(process.env.ROBLOX_AUTH_PLACE_ID || "74772093792198")
+const MANAGED_PLACE_ID = String(process.env.ROBLOX_MANAGED_PLACE_ID || "")
 const AUTH_CODE_TTL_MS = 5 * 60 * 1000
-
-let players = []
-let selectedPlayer = null
+const SERVER_TTL_MS = 2 * 60 * 1000
 
 const pendingLogins = new Map()
+const gameServers = new Map()
+const commandQueues = new Map()
 
 function parseCookies(req) {
     const cookieHeader = req.headers.cookie || ""
@@ -62,9 +63,14 @@ function getUser(req) {
     }
 }
 
-function isAdmin(req) {
+function ensureAdmin(req, res) {
     const user = getUser(req)
-    return !!user && ALLOWED_ROBLOX_IDS.has(String(user.id))
+    if (!user || !ALLOWED_ROBLOX_IDS.has(String(user.id))) {
+        res.status(403).json({ error: "forbidden" })
+        return null
+    }
+
+    return user
 }
 
 function createRequestId() {
@@ -90,10 +96,95 @@ function cleanupExpiredLogins() {
     }
 }
 
-setInterval(cleanupExpiredLogins, 60 * 1000).unref()
+function cleanupStaleServers() {
+    const now = Date.now()
+    for (const [jobId, serverState] of gameServers.entries()) {
+        if (serverState.seenAt + SERVER_TTL_MS <= now) {
+            gameServers.delete(jobId)
+            commandQueues.delete(jobId)
+        }
+    }
+}
+
+function getPlayersSnapshot() {
+    cleanupStaleServers()
+
+    return [...gameServers.values()]
+        .flatMap(serverState => serverState.players)
+        .sort((left, right) => {
+            const leftName = `${left.displayName || ""} ${left.username || ""}`.toLowerCase()
+            const rightName = `${right.displayName || ""} ${right.username || ""}`.toLowerCase()
+            return leftName.localeCompare(rightName)
+        })
+}
+
+function emitPlayersUpdate() {
+    io.emit("update", getPlayersSnapshot())
+}
+
+function validateGameRequest(req, res) {
+    const { key, placeId, jobId } = req.body || {}
+
+    if (key !== GAME_SHARED_KEY) {
+        res.status(403).json({ error: "wrong key" })
+        return null
+    }
+
+    if (!MANAGED_PLACE_ID) {
+        res.status(500).json({ error: "managed place id not configured" })
+        return null
+    }
+
+    if (String(placeId || "") !== MANAGED_PLACE_ID) {
+        res.status(403).json({ error: "wrong place" })
+        return null
+    }
+
+    if (!jobId) {
+        res.status(400).json({ error: "missing jobId" })
+        return null
+    }
+
+    return { jobId: String(jobId), placeId: String(placeId) }
+}
+
+function queueCommand(type, userId, payload = {}) {
+    const target = getPlayersSnapshot().find(player => String(player.userId) === String(userId))
+    if (!target) {
+        return { error: "player not found" }
+    }
+
+    const command = {
+        id: crypto.randomBytes(10).toString("hex"),
+        type,
+        userId: String(userId),
+        payload,
+        createdAt: Date.now()
+    }
+
+    const queue = commandQueues.get(target.jobId) || []
+    queue.push(command)
+    commandQueues.set(target.jobId, queue)
+    io.emit("commandQueued", command)
+
+    return { command, target }
+}
+
+setInterval(() => {
+    cleanupExpiredLogins()
+    cleanupStaleServers()
+    emitPlayersUpdate()
+}, 60 * 1000).unref()
 
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "index.html"))
+})
+
+app.get("/config", (req, res) => {
+    res.json({
+        authPlaceId: AUTH_PLACE_ID,
+        managedPlaceId: MANAGED_PLACE_ID
+    })
 })
 
 app.post("/auth/roblox/request", (req, res) => {
@@ -230,46 +321,108 @@ app.get("/me", (req, res) => {
     })
 })
 
-app.post("/roblox", (req, res) => {
-    const { key, data } = req.body || {}
+app.post("/game/sync", (req, res) => {
+    const context = validateGameRequest(req, res)
+    if (!context) return
+
+    const { players } = req.body || {}
+    if (!Array.isArray(players)) {
+        return res.status(400).json({ error: "players must be an array" })
+    }
+
+    const normalizedPlayers = players.map(player => ({
+        userId: String(player.userId),
+        username: String(player.username || "Unknown"),
+        displayName: String(player.displayName || player.username || "Unknown"),
+        accountAge: Number(player.accountAge || 0),
+        membershipType: String(player.membershipType || "None"),
+        jobId: context.jobId,
+        placeId: context.placeId,
+        updatedAt: Date.now()
+    }))
+
+    gameServers.set(context.jobId, {
+        jobId: context.jobId,
+        placeId: context.placeId,
+        seenAt: Date.now(),
+        players: normalizedPlayers
+    })
+
+    emitPlayersUpdate()
+    res.json({ ok: true, count: normalizedPlayers.length })
+})
+
+app.get("/game/commands/:jobId", (req, res) => {
+    const key = req.headers["x-roblox-key"]
+    const placeId = String(req.headers["x-roblox-place-id"] || "")
+    const jobId = String(req.params.jobId || "")
 
     if (key !== GAME_SHARED_KEY) {
-        return res.status(403).send("wrong key")
+        return res.status(403).json({ error: "wrong key" })
     }
 
-    players = players.filter(player => player.userId !== data.userId)
-    players.push(data)
-    io.emit("update", players)
-    res.send("ok")
-})
-
-app.post("/select-player", (req, res) => {
-    if (!isAdmin(req)) {
-        return res.status(403).send("forbidden")
+    if (!MANAGED_PLACE_ID || placeId !== MANAGED_PLACE_ID) {
+        return res.status(403).json({ error: "wrong place" })
     }
 
-    selectedPlayer = req.body.userId
-    io.emit("select", selectedPlayer)
-    res.send("ok")
+    res.json({
+        commands: commandQueues.get(jobId) || []
+    })
 })
 
-app.get("/selected", (req, res) => {
-    res.json(selectedPlayer)
+app.post("/game/commands/ack", (req, res) => {
+    const context = validateGameRequest(req, res)
+    if (!context) return
+
+    const { commandIds } = req.body || {}
+    const queue = commandQueues.get(context.jobId) || []
+    const acknowledged = new Set((commandIds || []).map(id => String(id)))
+    commandQueues.set(
+        context.jobId,
+        queue.filter(command => !acknowledged.has(String(command.id)))
+    )
+
+    res.json({ ok: true })
 })
 
-app.post("/camera", (req, res) => {
-    const { userId, cframe } = req.body || {}
-    io.emit("camera", { userId, cframe })
-    res.send("ok")
+app.get("/players", (req, res) => {
+    if (!ensureAdmin(req, res)) return
+    res.json({
+        managedPlaceId: MANAGED_PLACE_ID,
+        players: getPlayersSnapshot()
+    })
+})
+
+app.post("/admin/commands", (req, res) => {
+    if (!ensureAdmin(req, res)) return
+
+    const { type, userId, payload } = req.body || {}
+    const allowedTypes = new Set(["refresh", "kill", "bring_to_spawn", "kick"])
+
+    if (!allowedTypes.has(String(type))) {
+        return res.status(400).json({ error: "invalid command" })
+    }
+
+    const result = queueCommand(type, userId, payload || {})
+    if (result.error) {
+        return res.status(404).json({ error: result.error })
+    }
+
+    res.json({
+        ok: true,
+        command: result.command,
+        target: result.target
+    })
 })
 
 io.on("connection", socket => {
-    socket.emit("update", players)
+    socket.emit("update", getPlayersSnapshot())
 })
 
 const PORT = process.env.PORT || 3000
 server.listen(PORT, () => {
     console.log("[SERVER] Running on port " + PORT)
     console.log("[SERVER] Roblox auth place:", AUTH_PLACE_ID)
+    console.log("[SERVER] Managed place:", MANAGED_PLACE_ID || "NOT_SET")
     console.log("[SERVER] Roblox auth key set:", GAME_SHARED_KEY !== "change-this-key")
 })

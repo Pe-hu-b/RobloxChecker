@@ -8,7 +8,7 @@
 <style>
 :root {
     --bg: #08111f;
-    --panel: rgba(11, 23, 40, 0.88);
+    --panel: rgba(11, 23, 40, 0.9);
     --panel-strong: #10233d;
     --line: rgba(148, 163, 184, 0.2);
     --text: #ecf4ff;
@@ -31,6 +31,11 @@ body {
         linear-gradient(180deg, #07101d 0%, #0a1424 55%, #050b14 100%);
 }
 
+button,
+input {
+    font: inherit;
+}
+
 button {
     border: 0;
     border-radius: 999px;
@@ -44,19 +49,34 @@ button {
 button:hover { transform: translateY(-1px); }
 button:disabled { opacity: 0.6; cursor: wait; transform: none; }
 
+input {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 14px 16px;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.05);
+    outline: none;
+}
+
 .page {
-    max-width: 1160px;
+    max-width: 1260px;
     margin: 0 auto;
     padding: 40px 20px 56px;
 }
 
-.hero {
+.hero,
+.panel,
+.modal-card {
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 28px;
-    padding: 28px;
     box-shadow: var(--shadow);
     backdrop-filter: blur(14px);
+}
+
+.hero {
+    padding: 28px;
 }
 
 .eyebrow {
@@ -73,12 +93,16 @@ h1 {
     line-height: 0.95;
 }
 
+.subtitle,
+.muted {
+    color: var(--muted);
+    line-height: 1.6;
+}
+
 .subtitle {
     margin: 0;
-    max-width: 700px;
-    color: var(--muted);
+    max-width: 760px;
     font-size: 17px;
-    line-height: 1.6;
 }
 
 .grid {
@@ -89,12 +113,7 @@ h1 {
 }
 
 .panel {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 24px;
     padding: 24px;
-    box-shadow: var(--shadow);
-    backdrop-filter: blur(14px);
 }
 
 .login-button {
@@ -104,15 +123,16 @@ h1 {
 
 .login-button:hover { background: var(--accent-strong); }
 
-.logout-button {
-    background: rgba(239, 68, 68, 0.12);
-    color: #fecaca;
-    border: 1px solid rgba(239, 68, 68, 0.24);
+.ghost-button {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text);
+    border: 1px solid var(--line);
 }
 
-.muted {
-    color: var(--muted);
-    line-height: 1.6;
+.danger-button {
+    background: rgba(239, 68, 68, 0.14);
+    color: #fecaca;
+    border: 1px solid rgba(239, 68, 68, 0.24);
 }
 
 .code-box {
@@ -139,34 +159,30 @@ h1 {
     font-weight: 800;
 }
 
-.steps {
-    margin: 18px 0 0;
-    padding-left: 18px;
-    color: var(--muted);
-    line-height: 1.7;
-}
-
-.status-pill {
+.status-pill,
+.chip {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    margin-top: 16px;
     padding: 10px 14px;
     border-radius: 999px;
-    background: rgba(125, 211, 252, 0.08);
     border: 1px solid rgba(125, 211, 252, 0.2);
+    background: rgba(125, 211, 252, 0.08);
     color: #bae6fd;
     font-size: 14px;
 }
 
-.allowed-list {
+.allowed-list,
+.toolbar,
+.stats-row,
+.pagination {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 14px;
+    gap: 10px;
 }
 
-.allowed-list span {
+.allowed-list span,
+.chip {
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--line);
@@ -177,14 +193,15 @@ h1 {
 
 .topbar {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
     margin-bottom: 18px;
 }
 
 .identity h2,
-.identity p {
+.identity p,
+.section-title {
     margin: 0;
 }
 
@@ -200,6 +217,16 @@ h1 {
     background: rgba(15, 118, 110, 0.12);
     border: 1px solid rgba(45, 212, 191, 0.18);
     color: #ccfbf1;
+}
+
+.toolbar {
+    align-items: center;
+    justify-content: space-between;
+    margin: 22px 0 16px;
+}
+
+.search-wrap {
+    flex: 1 1 320px;
 }
 
 .player-grid {
@@ -223,11 +250,6 @@ h1 {
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
 }
 
-.card.selected {
-    border-color: rgba(0, 197, 142, 0.9);
-    box-shadow: 0 0 0 1px rgba(0, 197, 142, 0.5), 0 18px 40px rgba(0, 0, 0, 0.3);
-}
-
 .avatar {
     width: 84px;
     height: 84px;
@@ -239,7 +261,9 @@ h1 {
 }
 
 .card h3,
-.card p {
+.card p,
+.meta-block p,
+.modal-card p {
     margin: 0;
 }
 
@@ -248,7 +272,8 @@ h1 {
     margin-bottom: 8px;
 }
 
-.card p {
+.card p,
+.meta-block p {
     color: var(--muted);
     line-height: 1.5;
 }
@@ -261,6 +286,81 @@ h1 {
     border: 1px dashed var(--line);
 }
 
+.modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(3, 8, 15, 0.72);
+}
+
+.modal.open {
+    display: flex;
+}
+
+.modal-card {
+    width: min(760px, 100%);
+    padding: 24px;
+}
+
+.modal-header,
+.modal-actions,
+.action-grid {
+    display: flex;
+    gap: 12px;
+}
+
+.modal-header {
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-profile {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: 18px;
+    margin: 22px 0;
+}
+
+.modal-avatar {
+    width: 96px;
+    height: 96px;
+    border-radius: 22px;
+}
+
+.meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+}
+
+.meta-block {
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--line);
+}
+
+.meta-block strong {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #c7d2fe;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.action-grid {
+    flex-wrap: wrap;
+    margin-top: 20px;
+}
+
+.action-grid button {
+    flex: 1 1 180px;
+}
+
 .error {
     margin-top: 16px;
     color: #fecaca;
@@ -268,7 +368,11 @@ h1 {
 
 @media (max-width: 920px) {
     .grid { grid-template-columns: 1fr; }
-    .topbar { align-items: flex-start; flex-direction: column; }
+    .topbar,
+    .modal-header,
+    .modal-profile { grid-template-columns: 1fr; flex-direction: column; }
+    .modal-profile { display: block; }
+    .modal-avatar { margin-bottom: 16px; }
 }
 </style>
 </head>
@@ -277,7 +381,7 @@ h1 {
     <section class="hero">
         <p class="eyebrow">Roblox Authorization</p>
         <h1>Admin access now runs through your Roblox place.</h1>
-        <p class="subtitle">To get into the panel, generate a one-time code here, join the authorization place, and enter the code in the in-game textbox from an allowed account.</p>
+        <p class="subtitle">Generate a one-time code here, verify in the authorization place, then manage live players from the place configured in your Render environment.</p>
     </section>
 
     <div id="authView" class="grid">
@@ -291,21 +395,21 @@ h1 {
             <div id="loginControls" style="margin-top:22px;">
                 <button class="login-button" id="startLoginButton" onclick="startRobloxLogin()">Generate Roblox Login Code</button>
             </div>
-            <div id="loginStatus" class="status-pill" style="display:none;"></div>
+            <div id="loginStatus" class="status-pill" style="display:none; margin-top:16px;"></div>
             <p id="loginError" class="error"></p>
         </section>
 
         <section class="panel">
             <h2>How to verify</h2>
-            <p class="muted">Use your Roblox account inside the place below. The website keeps polling until your code is confirmed.</p>
+            <p class="muted">Use your Roblox account inside the authorization place. The website keeps polling until your code is confirmed.</p>
             <div class="code-box" id="codeBox" style="display:none;">
                 <p class="code-label">One-Time Login Code</p>
                 <p class="code-value" id="authCode">------</p>
             </div>
-            <ol class="steps">
+            <ol class="muted">
                 <li>Press the button to generate a code.</li>
-                <li>Join the authorization place: <a href="https://www.roblox.com/games/74772093792198/Authorization" target="_blank" rel="noreferrer" style="color:#86efac;">Authorization</a>.</li>
-                <li>Enter <strong id="chatCommand">000000</strong> into the textbox in the game and press Enter.</li>
+                <li>Join the authorization place: <a id="authLink" href="#" target="_blank" rel="noreferrer" style="color:#86efac;">Authorization</a>.</li>
+                <li>Enter <strong id="codeHint">000000</strong> into the in-game textbox and press Enter.</li>
                 <li>Come back here and wait for the panel to unlock.</li>
             </ol>
             <p class="muted" id="expiresText">Codes expire after 5 minutes.</p>
@@ -318,40 +422,125 @@ h1 {
                 <h2 id="userHeading">Logged in</h2>
                 <p id="userMeta"></p>
             </div>
-            <button class="logout-button" onclick="logout()">Logout</button>
+            <div class="toolbar">
+                <div class="chip" id="managedPlaceChip">Managed place not configured</div>
+                <button class="ghost-button" onclick="logout()">Logout</button>
+            </div>
         </div>
-        <div class="selection-status" id="status">No player selected.</div>
-        <div id="players" class="player-grid" style="margin-top:22px;"></div>
+
+        <div class="selection-status" id="status">Waiting for game servers to report players.</div>
+        <div class="stats-row" style="margin-top:18px;">
+            <div class="chip" id="playerCountChip">0 players online</div>
+            <div class="chip" id="serverCountChip">0 live server snapshots</div>
+        </div>
+
+        <div class="toolbar">
+            <div class="search-wrap">
+                <input id="playerSearch" type="text" placeholder="Search by username, display name, or Roblox ID" oninput="handleSearch()">
+            </div>
+            <button class="ghost-button" onclick="refreshPlayers()">Refresh</button>
+        </div>
+
+        <div id="players" class="player-grid"></div>
+        <div class="pagination" id="pagination" style="margin-top:18px;"></div>
+    </section>
+</div>
+
+<div id="playerModal" class="modal" onclick="handleModalBackdrop(event)">
+    <section class="modal-card">
+        <div class="modal-header">
+            <div>
+                <p class="eyebrow" style="margin-bottom:6px;">Player Actions</p>
+                <h2 class="section-title" id="modalTitle">Player</h2>
+            </div>
+            <div class="modal-actions">
+                <button class="ghost-button" onclick="closePlayerPanel()">Back</button>
+            </div>
+        </div>
+
+        <div class="modal-profile">
+            <img id="modalAvatar" class="modal-avatar" alt="">
+            <div>
+                <p id="modalSubtitle" class="muted"></p>
+                <div class="meta-grid" style="margin-top:16px;">
+                    <div class="meta-block">
+                        <strong>Roblox ID</strong>
+                        <p id="modalUserId"></p>
+                    </div>
+                    <div class="meta-block">
+                        <strong>Server Job ID</strong>
+                        <p id="modalJobId"></p>
+                    </div>
+                    <div class="meta-block">
+                        <strong>Account Age</strong>
+                        <p id="modalAccountAge"></p>
+                    </div>
+                    <div class="meta-block">
+                        <strong>Membership</strong>
+                        <p id="modalMembership"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-grid">
+            <button class="login-button" onclick="sendPlayerCommand('refresh')">Refresh Character</button>
+            <button class="ghost-button" onclick="sendPlayerCommand('bring_to_spawn')">Bring To Spawn</button>
+            <button class="ghost-button" onclick="sendPlayerCommand('kill')">Kill Character</button>
+            <button class="danger-button" onclick="sendPlayerCommand('kick')">Kick Player</button>
+        </div>
+
+        <p id="modalStatus" class="error"></p>
     </section>
 </div>
 
 <script>
+const PAGE_SIZE = 24
+
 let socket = null
-let selectedPlayerId = null
 let authRequestId = null
 let authPollTimer = null
+let allPlayers = []
+let filteredPlayers = []
+let currentPage = 1
+let selectedPlayer = null
+let config = {
+    authPlaceId: "74772093792198",
+    managedPlaceId: ""
+}
 
-fetch("/me")
-    .then(async response => {
+Promise.all([
+    fetch("/config").then(response => response.json()).catch(() => config),
+    fetch("/me").then(async response => {
         if (!response.ok) throw new Error("Failed to load session")
         return response.json()
     })
-    .then(user => {
-        if (!user) {
-            showAuthView()
-            return
-        }
+]).then(([serverConfig, user]) => {
+    config = serverConfig || config
+    applyConfig()
 
-        if (!user.admin) {
-            showDenied()
-            return
-        }
-
-        showPanel(user)
-    })
-    .catch(() => {
+    if (!user) {
         showAuthView()
-    })
+        return
+    }
+
+    if (!user.admin) {
+        showDenied()
+        return
+    }
+
+    showPanel(user)
+}).catch(() => {
+    applyConfig()
+    showAuthView()
+})
+
+function applyConfig() {
+    document.getElementById("authLink").href = "https://www.roblox.com/games/" + config.authPlaceId + "/Authorization"
+    document.getElementById("managedPlaceChip").textContent = config.managedPlaceId
+        ? "Managed place: " + config.managedPlaceId
+        : "Managed place not configured"
+}
 
 function showAuthView() {
     document.getElementById("authView").style.display = "grid"
@@ -369,8 +558,9 @@ function showPanel(user) {
     document.getElementById("authView").style.display = "none"
     document.getElementById("panelView").style.display = "block"
     document.getElementById("userHeading").textContent = user.displayName || user.username
-    document.getElementById("userMeta").textContent = "@" + user.username + " • Roblox ID " + user.id
+    document.getElementById("userMeta").textContent = "@" + user.username + " | Roblox ID " + user.id
     initSocket()
+    refreshPlayers()
 }
 
 async function startRobloxLogin() {
@@ -386,12 +576,11 @@ async function startRobloxLogin() {
 
         authRequestId = data.requestId
         document.getElementById("authCode").textContent = data.code
-        document.getElementById("chatCommand").textContent = data.code
+        document.getElementById("codeHint").textContent = data.code
         document.getElementById("codeBox").style.display = "block"
         document.getElementById("loginStatus").style.display = "inline-flex"
         document.getElementById("loginStatus").textContent = "Waiting for Roblox verification..."
         document.getElementById("expiresText").textContent = "Code expires at " + new Date(data.expiresAt).toLocaleTimeString() + "."
-
         startAuthPolling()
     } catch (authError) {
         error.textContent = authError.message
@@ -425,16 +614,10 @@ async function checkAuthStatus() {
         }
 
         const data = await response.json()
-
         if (data.status === "approved") {
             stopAuthPolling()
             document.getElementById("loginStatus").textContent = "Roblox verified. Finishing login..."
-            try {
-                await finalizeRobloxLogin()
-            } catch (error) {
-                document.getElementById("loginError").textContent = error.message
-                document.getElementById("loginStatus").textContent = "Verification finished, but the website could not open the session."
-            }
+            await finalizeRobloxLogin()
         }
     } catch (error) {
         document.getElementById("loginError").textContent = "Could not verify Roblox login right now."
@@ -465,45 +648,196 @@ function initSocket() {
     if (socket) return
 
     socket = io()
-    const container = document.getElementById("players")
-    const status = document.getElementById("status")
-
     socket.on("update", players => {
-        container.innerHTML = ""
+        allPlayers = Array.isArray(players) ? players : []
+        applyPlayerFilters()
+    })
+}
 
-        if (!players.length) {
-            container.innerHTML = '<div class="empty-state">No players have reported in from Roblox yet.</div>'
-            return
+async function refreshPlayers() {
+    try {
+        const response = await fetch("/players")
+        if (!response.ok) return
+        const data = await response.json()
+        config.managedPlaceId = data.managedPlaceId || config.managedPlaceId
+        applyConfig()
+        allPlayers = data.players || []
+        applyPlayerFilters()
+    } catch (error) {
+        document.getElementById("status").textContent = "Could not refresh player list."
+    }
+}
+
+function handleSearch() {
+    currentPage = 1
+    applyPlayerFilters()
+}
+
+function applyPlayerFilters() {
+    const search = document.getElementById("playerSearch").value.trim().toLowerCase()
+    filteredPlayers = allPlayers.filter(player => {
+        if (!search) return true
+        const haystack = [
+            player.username,
+            player.displayName,
+            player.userId,
+            player.jobId
+        ].join(" ").toLowerCase()
+        return haystack.includes(search)
+    })
+
+    const totalPages = Math.max(1, Math.ceil(filteredPlayers.length / PAGE_SIZE))
+    currentPage = Math.min(currentPage, totalPages)
+
+    renderPlayers()
+    renderPagination(totalPages)
+    updateStats()
+}
+
+function renderPlayers() {
+    const container = document.getElementById("players")
+    container.innerHTML = ""
+
+    if (!filteredPlayers.length) {
+        container.innerHTML = '<div class="empty-state">No matching players are currently online in the managed place.</div>'
+        document.getElementById("status").textContent = allPlayers.length
+            ? "No players match the current search."
+            : "Waiting for game servers to report players."
+        return
+    }
+
+    const startIndex = (currentPage - 1) * PAGE_SIZE
+    const pagePlayers = filteredPlayers.slice(startIndex, startIndex + PAGE_SIZE)
+    document.getElementById("status").textContent = "Showing " + (startIndex + 1) + "-" + (startIndex + pagePlayers.length) + " of " + filteredPlayers.length + " matching players."
+
+    pagePlayers.forEach(player => {
+        const card = document.createElement("article")
+        card.className = "card"
+        card.innerHTML = `
+            <img class="avatar" alt="" src="https://www.roblox.com/headshot-thumbnail/image?userId=${player.userId}&width=150&height=150&format=png">
+            <h3>${escapeHtml(player.displayName || player.username)}</h3>
+            <p>@${escapeHtml(player.username)}</p>
+            <p>Roblox ID: ${escapeHtml(String(player.userId))}</p>
+            <p>Server: ${escapeHtml(shortJobId(player.jobId))}</p>
+        `
+        card.onclick = () => openPlayerPanel(player)
+        container.appendChild(card)
+    })
+}
+
+function renderPagination(totalPages) {
+    const pagination = document.getElementById("pagination")
+    pagination.innerHTML = ""
+
+    if (totalPages <= 1) {
+        return
+    }
+
+    const previous = document.createElement("button")
+    previous.className = "ghost-button"
+    previous.textContent = "Previous"
+    previous.disabled = currentPage === 1
+    previous.onclick = () => {
+        currentPage -= 1
+        renderPlayers()
+        renderPagination(totalPages)
+    }
+    pagination.appendChild(previous)
+
+    const current = document.createElement("div")
+    current.className = "chip"
+    current.textContent = "Page " + currentPage + " of " + totalPages
+    pagination.appendChild(current)
+
+    const next = document.createElement("button")
+    next.className = "ghost-button"
+    next.textContent = "Next"
+    next.disabled = currentPage === totalPages
+    next.onclick = () => {
+        currentPage += 1
+        renderPlayers()
+        renderPagination(totalPages)
+    }
+    pagination.appendChild(next)
+}
+
+function updateStats() {
+    const serverIds = new Set(allPlayers.map(player => player.jobId))
+    document.getElementById("playerCountChip").textContent = allPlayers.length + " players online"
+    document.getElementById("serverCountChip").textContent = serverIds.size + " live server snapshots"
+}
+
+function openPlayerPanel(player) {
+    selectedPlayer = player
+    document.getElementById("modalTitle").textContent = player.displayName || player.username
+    document.getElementById("modalSubtitle").textContent = "@" + player.username
+    document.getElementById("modalAvatar").src = "https://www.roblox.com/headshot-thumbnail/image?userId=" + player.userId + "&width=150&height=150&format=png"
+    document.getElementById("modalUserId").textContent = player.userId
+    document.getElementById("modalJobId").textContent = player.jobId
+    document.getElementById("modalAccountAge").textContent = String(player.accountAge || 0)
+    document.getElementById("modalMembership").textContent = player.membershipType || "None"
+    document.getElementById("modalStatus").textContent = ""
+    document.getElementById("playerModal").classList.add("open")
+}
+
+function closePlayerPanel() {
+    selectedPlayer = null
+    document.getElementById("playerModal").classList.remove("open")
+}
+
+function handleModalBackdrop(event) {
+    if (event.target.id === "playerModal") {
+        closePlayerPanel()
+    }
+}
+
+async function sendPlayerCommand(type) {
+    if (!selectedPlayer) return
+
+    const modalStatus = document.getElementById("modalStatus")
+    modalStatus.textContent = ""
+
+    const payload = {}
+    if (type === "kick") {
+        payload.reason = "Removed by admin panel"
+    }
+
+    try {
+        const response = await fetch("/admin/commands", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                type,
+                userId: selectedPlayer.userId,
+                payload
+            })
+        })
+
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) {
+            throw new Error(data.error || "Command failed")
         }
 
-        players.forEach(player => {
-            const card = document.createElement("article")
-            card.className = "card" + (String(player.userId) === String(selectedPlayerId) ? " selected" : "")
-            card.dataset.userId = String(player.userId)
-            card.innerHTML = `
-                <img class="avatar" alt="" src="https://www.roblox.com/headshot-thumbnail/image?userId=${player.userId}&width=150&height=150&format=png">
-                <h3>${escapeHtml(player.displayName || player.username)}</h3>
-                <p>@${escapeHtml(player.username)}</p>
-                <p>Roblox ID: ${escapeHtml(String(player.userId))}</p>
-            `
-            card.onclick = async () => {
-                await fetch("/select-player", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ userId: player.userId })
-                })
-            }
-            container.appendChild(card)
-        })
-    })
+        modalStatus.style.color = "#86efac"
+        modalStatus.textContent = "Command queued: " + readableCommand(type)
+    } catch (error) {
+        modalStatus.style.color = "#fecaca"
+        modalStatus.textContent = error.message
+    }
+}
 
-    socket.on("select", id => {
-        selectedPlayerId = id
-        status.textContent = id ? "Selected Roblox ID: " + id : "No player selected."
-        document.querySelectorAll(".card").forEach(card => {
-            card.classList.toggle("selected", card.dataset.userId === String(id))
-        })
-    })
+function readableCommand(type) {
+    const labels = {
+        refresh: "Refresh Character",
+        bring_to_spawn: "Bring To Spawn",
+        kill: "Kill Character",
+        kick: "Kick Player"
+    }
+    return labels[type] || type
+}
+
+function shortJobId(jobId) {
+    return String(jobId || "").slice(0, 8)
 }
 
 function escapeHtml(value) {
