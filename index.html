@@ -1,67 +1,519 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Roblox Admin Panel</title>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
-body { background: #0f172a; color: white; font-family: Arial; text-align: center; }
-button { padding: 10px 20px; margin: 10px; border-radius: 8px; border: none; background: #5865F2; color: white; cursor: pointer; }
-.container { display: flex; flex-wrap: wrap; justify-content: center; }
-.card { background: #1e293b; margin: 10px; padding: 15px; border-radius: 12px; width: 200px; cursor: pointer; transition: 0.3s; }
-.card:hover { transform: scale(1.05); background: #334155; }
+:root {
+    --bg: #08111f;
+    --panel: rgba(11, 23, 40, 0.88);
+    --panel-strong: #10233d;
+    --line: rgba(148, 163, 184, 0.2);
+    --text: #ecf4ff;
+    --muted: #98a8bf;
+    --accent: #00c58e;
+    --accent-strong: #00a777;
+    --danger: #ef4444;
+    --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--text);
+    background:
+        radial-gradient(circle at top, rgba(0, 197, 142, 0.16), transparent 34%),
+        linear-gradient(180deg, #07101d 0%, #0a1424 55%, #050b14 100%);
+}
+
+button {
+    border: 0;
+    border-radius: 999px;
+    padding: 12px 22px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease;
+}
+
+button:hover { transform: translateY(-1px); }
+button:disabled { opacity: 0.6; cursor: wait; transform: none; }
+
+.page {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 40px 20px 56px;
+}
+
+.hero {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 28px;
+    padding: 28px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px);
+}
+
+.eyebrow {
+    margin: 0 0 10px;
+    color: #7dd3fc;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+}
+
+h1 {
+    margin: 0 0 14px;
+    font-size: clamp(34px, 5vw, 56px);
+    line-height: 0.95;
+}
+
+.subtitle {
+    margin: 0;
+    max-width: 700px;
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.6;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 22px;
+    margin-top: 24px;
+}
+
+.panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px);
+}
+
+.login-button {
+    background: var(--accent);
+    color: #03120e;
+}
+
+.login-button:hover { background: var(--accent-strong); }
+
+.logout-button {
+    background: rgba(239, 68, 68, 0.12);
+    color: #fecaca;
+    border: 1px solid rgba(239, 68, 68, 0.24);
+}
+
+.muted {
+    color: var(--muted);
+    line-height: 1.6;
+}
+
+.code-box {
+    margin: 18px 0 14px;
+    padding: 18px 20px;
+    border-radius: 20px;
+    border: 1px dashed rgba(0, 197, 142, 0.5);
+    background: rgba(0, 197, 142, 0.08);
+    text-align: center;
+}
+
+.code-label {
+    margin: 0 0 8px;
+    color: #9ae6b4;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.code-value {
+    margin: 0;
+    font-size: clamp(34px, 8vw, 52px);
+    letter-spacing: 0.18em;
+    font-weight: 800;
+}
+
+.steps {
+    margin: 18px 0 0;
+    padding-left: 18px;
+    color: var(--muted);
+    line-height: 1.7;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: rgba(125, 211, 252, 0.08);
+    border: 1px solid rgba(125, 211, 252, 0.2);
+    color: #bae6fd;
+    font-size: 14px;
+}
+
+.allowed-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.allowed-list span {
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--line);
+    padding: 8px 12px;
+    color: #cbd5e1;
+    font-size: 13px;
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.identity h2,
+.identity p {
+    margin: 0;
+}
+
+.identity p {
+    color: var(--muted);
+    margin-top: 6px;
+}
+
+.selection-status {
+    margin: 20px 0 0;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: rgba(15, 118, 110, 0.12);
+    border: 1px solid rgba(45, 212, 191, 0.18);
+    color: #ccfbf1;
+}
+
+.player-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.card {
+    background: linear-gradient(180deg, rgba(16, 35, 61, 0.92), rgba(9, 20, 34, 0.96));
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    padding: 18px;
+    cursor: pointer;
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(0, 197, 142, 0.38);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+}
+
+.card.selected {
+    border-color: rgba(0, 197, 142, 0.9);
+    box-shadow: 0 0 0 1px rgba(0, 197, 142, 0.5), 0 18px 40px rgba(0, 0, 0, 0.3);
+}
+
+.avatar {
+    width: 84px;
+    height: 84px;
+    border-radius: 18px;
+    display: block;
+    margin-bottom: 14px;
+    object-fit: cover;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.card h3,
+.card p {
+    margin: 0;
+}
+
+.card h3 {
+    font-size: 20px;
+    margin-bottom: 8px;
+}
+
+.card p {
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.empty-state {
+    color: var(--muted);
+    text-align: center;
+    padding: 46px 20px;
+    border-radius: 22px;
+    border: 1px dashed var(--line);
+}
+
+.error {
+    margin-top: 16px;
+    color: #fecaca;
+}
+
+@media (max-width: 920px) {
+    .grid { grid-template-columns: 1fr; }
+    .topbar { align-items: flex-start; flex-direction: column; }
+}
 </style>
 </head>
 <body>
-<h1>🔥 Roblox Admin Panel</h1>
-<div id="auth"><h2>Loading...</h2></div>
-<div id="panel" style="display:none;">
-    <h2 id="user"></h2>
-    <button onclick="logout()">Logout</button>
-    <h2 id="status">No player selected</h2>
-    <div class="container" id="players"></div>
+<div class="page">
+    <section class="hero">
+        <p class="eyebrow">Roblox Authorization</p>
+        <h1>Admin access now runs through your Roblox place.</h1>
+        <p class="subtitle">Discord login is gone. To get into the panel, generate a one-time code here, join the authorization place, and type the code in Roblox chat from an allowed account.</p>
+    </section>
+
+    <div id="authView" class="grid">
+        <section class="panel">
+            <h2>Website Login</h2>
+            <p class="muted">Only these Roblox accounts can finish login on this website.</p>
+            <div class="allowed-list">
+                <span>1280770559</span>
+                <span>1479207099</span>
+            </div>
+            <div id="loginControls" style="margin-top:22px;">
+                <button class="login-button" id="startLoginButton" onclick="startRobloxLogin()">Generate Roblox Login Code</button>
+            </div>
+            <div id="loginStatus" class="status-pill" style="display:none;"></div>
+            <p id="loginError" class="error"></p>
+        </section>
+
+        <section class="panel">
+            <h2>How to verify</h2>
+            <p class="muted">Use your Roblox account inside the place below. The website keeps polling until your code is confirmed.</p>
+            <div class="code-box" id="codeBox" style="display:none;">
+                <p class="code-label">One-Time Login Code</p>
+                <p class="code-value" id="authCode">------</p>
+            </div>
+            <ol class="steps">
+                <li>Press the button to generate a code.</li>
+                <li>Join the authorization place: <a href="https://www.roblox.com/games/74772093792198/Authorization" target="_blank" rel="noreferrer" style="color:#86efac;">Authorization</a>.</li>
+                <li>In Roblox chat, type <strong id="chatCommand">!auth 000000</strong>.</li>
+                <li>Come back here and wait for the panel to unlock.</li>
+            </ol>
+            <p class="muted" id="expiresText">Codes expire after 5 minutes.</p>
+        </section>
+    </div>
+
+    <section id="panelView" class="panel" style="display:none; margin-top:24px;">
+        <div class="topbar">
+            <div class="identity">
+                <h2 id="userHeading">Logged in</h2>
+                <p id="userMeta"></p>
+            </div>
+            <button class="logout-button" onclick="logout()">Logout</button>
+        </div>
+        <div class="selection-status" id="status">No player selected.</div>
+        <div id="players" class="player-grid" style="margin-top:22px;"></div>
+    </section>
 </div>
+
 <script>
-let selected = null
+let socket = null
+let selectedPlayerId = null
+let authRequestId = null
+let authPollTimer = null
 
 fetch("/me")
-.then(res => { if (!res.ok) throw new Error(); return res.json() })
-.then(user => {
-    if (!user) {
-        document.getElementById("auth").innerHTML = '<button onclick="login()">Login with Discord</button>'
-        return
-    }
-    if (!user.admin) {
-        document.getElementById("auth").innerHTML = "<h1>Access Denied</h1>"
-        return
-    }
-    document.getElementById("auth").style.display = "none"
-    document.getElementById("panel").style.display = "block"
-    document.getElementById("user").innerText = "Logged in as: " + user.username
-    initSocket()
-})
-.catch(() => {
-    document.getElementById("auth").innerHTML = '<button onclick="login()">Login with Discord</button>'
-})
+    .then(async response => {
+        if (!response.ok) throw new Error("Failed to load session")
+        return response.json()
+    })
+    .then(user => {
+        if (!user) {
+            showAuthView()
+            return
+        }
 
-function login() { window.location.href = "/auth/discord" }
-function logout() { window.location.href = "/logout" }
+        if (!user.admin) {
+            showDenied()
+            return
+        }
+
+        showPanel(user)
+    })
+    .catch(() => {
+        showAuthView()
+    })
+
+function showAuthView() {
+    document.getElementById("authView").style.display = "grid"
+    document.getElementById("panelView").style.display = "none"
+}
+
+function showDenied() {
+    const authView = document.getElementById("authView")
+    authView.style.display = "grid"
+    document.getElementById("loginControls").innerHTML = "<p class='error'>Access denied for this Roblox account.</p>"
+}
+
+function showPanel(user) {
+    stopAuthPolling()
+    document.getElementById("authView").style.display = "none"
+    document.getElementById("panelView").style.display = "block"
+    document.getElementById("userHeading").textContent = user.displayName || user.username
+    document.getElementById("userMeta").textContent = "@" + user.username + " • Roblox ID " + user.id
+    initSocket()
+}
+
+async function startRobloxLogin() {
+    const button = document.getElementById("startLoginButton")
+    const error = document.getElementById("loginError")
+    error.textContent = ""
+    button.disabled = true
+
+    try {
+        const response = await fetch("/auth/roblox/request", { method: "POST" })
+        if (!response.ok) throw new Error("Could not create login code")
+        const data = await response.json()
+
+        authRequestId = data.requestId
+        document.getElementById("authCode").textContent = data.code
+        document.getElementById("chatCommand").textContent = "!auth " + data.code
+        document.getElementById("codeBox").style.display = "block"
+        document.getElementById("loginStatus").style.display = "inline-flex"
+        document.getElementById("loginStatus").textContent = "Waiting for Roblox verification..."
+        document.getElementById("expiresText").textContent = "Code expires at " + new Date(data.expiresAt).toLocaleTimeString() + "."
+
+        startAuthPolling()
+    } catch (authError) {
+        error.textContent = authError.message
+    } finally {
+        button.disabled = false
+    }
+}
+
+function startAuthPolling() {
+    stopAuthPolling()
+    authPollTimer = setInterval(checkAuthStatus, 2500)
+    checkAuthStatus()
+}
+
+function stopAuthPolling() {
+    if (authPollTimer) {
+        clearInterval(authPollTimer)
+        authPollTimer = null
+    }
+}
+
+async function checkAuthStatus() {
+    if (!authRequestId) return
+
+    try {
+        const response = await fetch("/auth/roblox/status/" + authRequestId)
+        if (response.status === 404) {
+            stopAuthPolling()
+            document.getElementById("loginStatus").textContent = "Code expired. Generate a new one."
+            return
+        }
+
+        const data = await response.json()
+
+        if (data.status === "approved") {
+            stopAuthPolling()
+            document.getElementById("loginStatus").textContent = "Roblox verified. Finishing login..."
+            try {
+                await finalizeRobloxLogin()
+            } catch (error) {
+                document.getElementById("loginError").textContent = error.message
+                document.getElementById("loginStatus").textContent = "Verification finished, but the website could not open the session."
+            }
+        }
+    } catch (error) {
+        document.getElementById("loginError").textContent = "Could not verify Roblox login right now."
+    }
+}
+
+async function finalizeRobloxLogin() {
+    const response = await fetch("/auth/roblox/finalize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId: authRequestId })
+    })
+
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({ error: "Login failed" }))
+        throw new Error(payload.error || "Login failed")
+    }
+
+    const data = await response.json()
+    showPanel(data.user)
+}
+
+function logout() {
+    window.location.href = "/logout"
+}
 
 function initSocket() {
-    const socket = io()
+    if (socket) return
+
+    socket = io()
     const container = document.getElementById("players")
     const status = document.getElementById("status")
-    socket.on("update", (data) => {
+
+    socket.on("update", players => {
         container.innerHTML = ""
-        data.forEach(p => {
-            const div = document.createElement("div")
-            div.className = "card"
-            div.innerHTML = `<h3>${p.username}</h3><img src="https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${p.userId}&size=150x150&format=Png&isCircular=false"><p>ID: ${p.userId}</p>`
-            div.onclick = () => fetch("/select-player", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ userId: p.userId }) })
-            container.appendChild(div)
+
+        if (!players.length) {
+            container.innerHTML = '<div class="empty-state">No players have reported in from Roblox yet.</div>'
+            return
+        }
+
+        players.forEach(player => {
+            const card = document.createElement("article")
+            card.className = "card" + (String(player.userId) === String(selectedPlayerId) ? " selected" : "")
+            card.dataset.userId = String(player.userId)
+            card.innerHTML = `
+                <img class="avatar" alt="" src="https://www.roblox.com/headshot-thumbnail/image?userId=${player.userId}&width=150&height=150&format=png">
+                <h3>${escapeHtml(player.displayName || player.username)}</h3>
+                <p>@${escapeHtml(player.username)}</p>
+                <p>Roblox ID: ${escapeHtml(String(player.userId))}</p>
+            `
+            card.onclick = async () => {
+                await fetch("/select-player", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ userId: player.userId })
+                })
+            }
+            container.appendChild(card)
         })
     })
-    socket.on("select", (id) => { selected = id; status.innerText = "Selected: " + id })
+
+    socket.on("select", id => {
+        selectedPlayerId = id
+        status.textContent = id ? "Selected Roblox ID: " + id : "No player selected."
+        document.querySelectorAll(".card").forEach(card => {
+            card.classList.toggle("selected", card.dataset.userId === String(id))
+        })
+    })
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;")
 }
 </script>
 </body>
-</html> 
+</html>
