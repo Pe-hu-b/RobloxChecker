@@ -2,22 +2,21 @@ module.exports = [
     {
         type: "refresh",
         label: "Refresh Character",
-        style: "login-button",
+        style: "success-button",
         payload: {}
     },
     {
         type: "bring_to_spawn",
         label: "Bring To Spawn",
-        style: "ghost-button",
+        style: "secondary-button",
         payload: {}
     },
     {
         type: "kill",
         label: "Kill Character",
-        style: "ghost-button",
+        style: "warning-button",
         payload: {}
     },
-
     {
         type: "kick",
         label: "Kick Player",
@@ -26,47 +25,20 @@ module.exports = [
             reason: "Removed by admin panel"
         }
     },
-    //tbd
     {
-        type: "wip",
-        label: "wip",
-        style: "ghost-button",
-        payload: {}
-    },
-    {
-        type: "wip",
-        label: "wip",
-        style: "ghost-button",
-        payload: {}
-    },
-    {
-        type: "wip",
-        label: "wip",
-        style: "ghost-button",
-        payload: {}
-    },
-    {
-        type: "wip",
-        label: "wip",
-        style: "ghost-button",
-        payload: {}
-    },
-    {
-        type: "wip",
-        label: "wip",
-        style: "ghost-button",
-        payload: {}
-    },
-    {
-        type: "wip",
-        label: "wip",
-        style: "ghost-button",
-        payload: {}
-    },
-    {
-        type: "wip",
-        label: "wip",
-        style: "ghost-button",
-        payload: {}
+        type: "ban",
+        label: "Ban Player",
+        style: "danger-button",
+        payload: {
+            reason: "Banned by admin panel"
+        },
+        fields: [
+            {
+                key: "duration",
+                label: "Duration",
+                type: "text",
+                placeholder: "1d, 7d, permanent"
+            }
+        ]
     }
 ]

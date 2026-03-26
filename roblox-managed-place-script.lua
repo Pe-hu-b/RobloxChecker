@@ -175,6 +175,13 @@ local function executeCommand(command)
     if command.type == "kick" then
         local reason = command.payload and command.payload.reason or "Removed by admin panel"
         player:Kick(reason)
+        return
+    end
+
+    if command.type == "ban" then
+        local duration = command.payload and command.payload.duration or "unspecified"
+        local reason = command.payload and command.payload.reason or "Banned by admin panel"
+        player:Kick(reason .. " | Duration: " .. tostring(duration))
     end
 end
 

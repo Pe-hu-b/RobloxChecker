@@ -123,10 +123,22 @@ h1 {
 
 .login-button:hover { background: var(--accent-strong); }
 
-.ghost-button {
+.secondary-button {
     background: rgba(255, 255, 255, 0.06);
     color: var(--text);
     border: 1px solid var(--line);
+}
+
+.warning-button {
+    background: rgba(245, 158, 11, 0.14);
+    color: #fde68a;
+    border: 1px solid rgba(245, 158, 11, 0.28);
+}
+
+.success-button {
+    background: rgba(16, 185, 129, 0.18);
+    color: #d1fae5;
+    border: 1px solid rgba(16, 185, 129, 0.28);
 }
 
 .danger-button {
@@ -361,6 +373,42 @@ h1 {
     flex: 1 1 180px;
 }
 
+.command-list {
+    display: grid;
+    gap: 14px;
+    margin-top: 20px;
+}
+
+.command-card {
+    padding: 16px;
+    border-radius: 20px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.command-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.command-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.field-wrap label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #93c5fd;
+}
+
 .value-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -447,7 +495,7 @@ h1 {
             </div>
             <div class="toolbar">
                 <div class="chip" id="managedPlaceChip">Managed place not configured</div>
-                <button class="ghost-button" onclick="logout()">Logout</button>
+                <button class="secondary-button" onclick="logout()">Logout</button>
             </div>
         </div>
 
@@ -461,7 +509,7 @@ h1 {
             <div class="search-wrap">
                 <input id="playerSearch" type="text" placeholder="Search by username, display name, or Roblox ID" oninput="handleSearch()">
             </div>
-            <button class="ghost-button" onclick="refreshPlayers()">Refresh</button>
+            <button class="secondary-button" onclick="refreshPlayers()">Refresh</button>
         </div>
 
         <div id="players" class="player-grid"></div>
@@ -477,7 +525,7 @@ h1 {
                 <h2 class="section-title" id="modalTitle">Player</h2>
             </div>
             <div class="modal-actions">
-                <button class="ghost-button" onclick="closePlayerPanel()">Back</button>
+                <button class="secondary-button" onclick="closePlayerPanel()">Back</button>
             </div>
         </div>
 
@@ -507,9 +555,10 @@ h1 {
         </div>
 
         <div class="action-grid">
-            <button class="ghost-button" onclick="joinSelectedPlayer()">Join Game</button>
-            <div id="commandButtons" class="action-grid" style="flex: 1 1 100%;"></div>
+            <button class="secondary-button" onclick="joinSelectedPlayer()">Join Game</button>
         </div>
+
+        <div id="commandButtons" class="command-list"></div>
 
         <div id="displayValuesWrap" style="margin-top:20px; display:none;">
             <p class="eyebrow" style="margin-bottom:10px;">Live Values</p>
@@ -768,7 +817,7 @@ function renderPagination(totalPages) {
     }
 
     const previous = document.createElement("button")
-    previous.className = "ghost-button"
+    previous.className = "secondary-button"
     previous.textContent = "Previous"
     previous.disabled = currentPage === 1
     previous.onclick = () => {
@@ -784,7 +833,7 @@ function renderPagination(totalPages) {
     pagination.appendChild(current)
 
     const next = document.createElement("button")
-    next.className = "ghost-button"
+    next.className = "secondary-button"
     next.textContent = "Next"
     next.disabled = currentPage === totalPages
     next.onclick = () => {
@@ -834,7 +883,15 @@ async function sendPlayerCommand(type) {
     modalStatus.textContent = ""
 
     const commandConfig = (config.commands || []).find(command => command.type === type)
-    const payload = commandConfig && commandConfig.payload ? commandConfig.payload : {}
+    const payload = {
+        ...((commandConfig && commandConfig.payload) || {})
+    }
+
+    ;((commandConfig && commandConfig.fields) || []).forEach(field => {
+        const input = document.querySelector(`[data-command-field="${field.key}"][data-command-type="${type}"]`)
+        if (!input) return
+        payload[field.key] = input.value
+    })
 
     try {
         const response = await fetch("/admin/commands", {
@@ -938,11 +995,36 @@ function renderCommandButtons() {
 
     wrap.innerHTML = ""
     ;(config.commands || []).forEach(command => {
-        const button = document.createElement("button")
-        button.className = command.style || "ghost-button"
-        button.textContent = command.label || command.type
-        button.onclick = () => sendPlayerCommand(command.type)
-        wrap.appendChild(button)
+        const card = document.createElement("div")
+        card.className = "command-card"
+
+        const fieldsHtml = ((command.fields || []).map(field => {
+            return `
+                <div class="field-wrap">
+                    <label>${escapeHtml(field.label || field.key)}</label>
+                    <input
+                        type="${escapeHtml(field.type || "text")}"
+                        placeholder="${escapeHtml(field.placeholder || "")}"
+                        value="${escapeHtml(field.defaultValue || "")}"
+                        data-command-type="${escapeHtml(command.type)}"
+                        data-command-field="${escapeHtml(field.key)}"
+                    >
+                </div>
+            `
+        }).join(""))
+
+        card.innerHTML = `
+            <div class="command-head">
+                <div>
+                    <strong>${escapeHtml(command.label || command.type)}</strong>
+                </div>
+                <button class="${escapeHtml(command.style || "secondary-button")}">${escapeHtml(command.label || command.type)}</button>
+            </div>
+            ${fieldsHtml ? `<div class="command-fields">${fieldsHtml}</div>` : ""}
+        `
+
+        card.querySelector("button").onclick = () => sendPlayerCommand(command.type)
+        wrap.appendChild(card)
     })
 }
 </script>
