@@ -17,6 +17,7 @@ module.exports = [
         style: "ghost-button",
         payload: {}
     },
+
     {
         type: "kick",
         label: "Kick Player",
@@ -24,5 +25,48 @@ module.exports = [
         payload: {
             reason: "Removed by admin panel"
         }
+    },
+    //tbd
+    {
+        type: "wip",
+        label: "wip",
+        style: "ghost-button",
+        payload: {}
+    },
+    {
+        type: "wip",
+        label: "wip",
+        style: "ghost-button",
+        payload: {}
+    },
+    {
+        type: "wip",
+        label: "wip",
+        style: "ghost-button",
+        payload: {}
+    },
+    {
+        type: "wip",
+        label: "wip",
+        style: "ghost-button",
+        payload: {}
+    },
+    {
+        type: "wip",
+        label: "wip",
+        style: "ghost-button",
+        payload: {}
+    },
+    {
+        type: "wip",
+        label: "wip",
+        style: "ghost-button",
+        payload: {}
+    },
+    {
+        type: "wip",
+        label: "wip",
+        style: "ghost-button",
+        payload: {}
     }
 ]
