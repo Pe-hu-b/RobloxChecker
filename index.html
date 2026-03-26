@@ -770,6 +770,8 @@ function applyPlayerFilters() {
     const totalPages = Math.max(1, Math.ceil(filteredPlayers.length / PAGE_SIZE))
     currentPage = Math.min(currentPage, totalPages)
 
+    syncSelectedPlayer()
+
     renderPlayers()
     renderPagination(totalPages)
     updateStats()
@@ -871,6 +873,21 @@ function openPlayerPanel(player) {
 function closePlayerPanel() {
     selectedPlayer = null
     document.getElementById("playerModal").classList.remove("open")
+}
+
+function syncSelectedPlayer() {
+    if (!selectedPlayer) return
+
+    const nextSelectedPlayer = allPlayers.find(player => String(player.userId) === String(selectedPlayer.userId))
+    if (!nextSelectedPlayer) {
+        closePlayerPanel()
+        return
+    }
+
+    selectedPlayer = nextSelectedPlayer
+    if (document.getElementById("playerModal").classList.contains("open")) {
+        openPlayerPanel(nextSelectedPlayer)
+    }
 }
 
 function handleModalBackdrop(event) {
