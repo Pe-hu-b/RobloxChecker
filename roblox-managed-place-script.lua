@@ -7,6 +7,7 @@ local AUTH_KEY = "change-this-key"
 local MANAGED_PLACE_ID = 0
 local SYNC_INTERVAL = 10
 local COMMAND_POLL_INTERVAL = 2
+local banRegistry = {}
 
 if not RunService:IsServer() then
     error("This script must run on the server.")
@@ -181,7 +182,58 @@ local function executeCommand(command)
     if command.type == "ban" then
         local duration = command.payload and command.payload.duration or "unspecified"
         local reason = command.payload and command.payload.reason or "Banned by admin panel"
+        banRegistry[player.UserId] = {
+            reason = tostring(reason),
+            duration = tostring(duration),
+            createdAt = os.time(),
+        }
         player:Kick(reason .. " | Duration: " .. tostring(duration))
+        return
+    end
+
+    if command.type == "unban" then
+        banRegistry[player.UserId] = nil
+        return
+    end
+
+    if command.type == "give_leaderstat" then
+        local payload = command.payload or {}
+        local statName = tostring(payload.statName or "")
+        local value = tonumber(payload.value)
+
+        if statName == "" or value == nil then
+            warn("Invalid give_leaderstat payload for " .. player.Name)
+            return
+        end
+
+        local leaderstats = player:FindFirstChild("leaderstats")
+        if not leaderstats then
+            warn("leaderstats folder not found for " .. player.Name)
+            return
+        end
+
+        local stat = leaderstats:FindFirstChild(statName)
+        if not stat or not stat:IsA("ValueBase") then
+            warn("Leaderstat " .. statName .. " not found for " .. player.Name)
+            return
+        end
+
+        if stat:IsA("IntValue") then
+            stat.Value += math.floor(value)
+            return
+        end
+
+        if stat:IsA("NumberValue") then
+            stat.Value += value
+            return
+        end
+
+        if stat:IsA("StringValue") then
+            stat.Value = tostring(value)
+            return
+        end
+
+        warn("Unsupported leaderstat type for " .. statName)
     end
 end
 
@@ -229,6 +281,12 @@ local function watchPlayer(player)
 end
 
 Players.PlayerAdded:Connect(function(player)
+    local existingBan = banRegistry[player.UserId]
+    if existingBan then
+        player:Kick(existingBan.reason .. " | Duration: " .. existingBan.duration)
+        return
+    end
+
     watchPlayer(player)
     syncPlayers()
 end)

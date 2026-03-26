@@ -40,5 +40,31 @@ module.exports = [
                 placeholder: "1d, 7d, permanent"
             }
         ]
+    },
+    {
+        type: "unban",
+        label: "Unban Player",
+        style: "success-button",
+        payload: {}
+    },
+    {
+        type: "give_leaderstat",
+        label: "Give Leaderstat",
+        style: "secondary-button",
+        payload: {},
+        fields: [
+            {
+                key: "statName",
+                label: "Leaderstat Name",
+                type: "text",
+                placeholder: "Coins"
+            },
+            {
+                key: "value",
+                label: "Value",
+                type: "number",
+                placeholder: "1000"
+            }
+        ]
     }
 ]
