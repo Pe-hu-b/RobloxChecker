@@ -20,7 +20,7 @@ const ALLOWED_ROBLOX_IDS = new Set(["1280770559", "1479207099"])
 const AUTH_PLACE_ID = String(process.env.ROBLOX_AUTH_PLACE_ID || "74772093792198")
 const MANAGED_PLACE_ID = String(process.env.ROBLOX_MANAGED_PLACE_ID || "")
 const AUTH_CODE_TTL_MS = 5 * 60 * 1000
-const SERVER_TTL_MS = 2 * 60 * 1000
+const SERVER_TTL_MS = 3 * 60 * 1000
 
 const pendingLogins = new Map()
 const gameServers = new Map()
