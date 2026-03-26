@@ -306,6 +306,7 @@ h1 {
     justify-content: center;
     padding: 24px;
     background: rgba(3, 8, 15, 0.72);
+    overflow-y: auto;
 }
 
 .modal.open {
@@ -315,6 +316,8 @@ h1 {
 .modal-card {
     width: min(760px, 100%);
     padding: 24px;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
 }
 
 .modal-header,
@@ -518,7 +521,7 @@ h1 {
 </div>
 
 <div id="playerModal" class="modal" onclick="handleModalBackdrop(event)">
-    <section class="modal-card">
+    <section class="modal-card" onclick="stopModalPropagation(event)">
         <div class="modal-header">
             <div>
                 <p class="eyebrow" style="margin-bottom:6px;">Player Actions</p>
@@ -876,6 +879,10 @@ function handleModalBackdrop(event) {
     }
 }
 
+function stopModalPropagation(event) {
+    event.stopPropagation()
+}
+
 async function sendPlayerCommand(type) {
     if (!selectedPlayer) return
 
@@ -1018,12 +1025,28 @@ function renderCommandButtons() {
                 <div>
                     <strong>${escapeHtml(command.label || command.type)}</strong>
                 </div>
-                <button class="${escapeHtml(command.style || "secondary-button")}">${escapeHtml(command.label || command.type)}</button>
+                <button type="button" class="${escapeHtml(command.style || "secondary-button")}">${escapeHtml(command.label || command.type)}</button>
             </div>
             ${fieldsHtml ? `<div class="command-fields">${fieldsHtml}</div>` : ""}
         `
 
-        card.querySelector("button").onclick = () => sendPlayerCommand(command.type)
+        card.querySelector("button").onclick = event => {
+            event.preventDefault()
+            event.stopPropagation()
+            sendPlayerCommand(command.type)
+        }
+
+        card.querySelectorAll("input").forEach(input => {
+            input.addEventListener("click", event => event.stopPropagation())
+            input.addEventListener("keydown", event => {
+                event.stopPropagation()
+                if (event.key === "Enter") {
+                    event.preventDefault()
+                    sendPlayerCommand(command.type)
+                }
+            })
+        })
+
         wrap.appendChild(card)
     })
 }
