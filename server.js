@@ -148,6 +148,20 @@ function validateGameRequest(req, res) {
     return { jobId: String(jobId), placeId: String(placeId) }
 }
 
+function normalizeDisplayValues(values) {
+    if (!values || typeof values !== "object" || Array.isArray(values)) {
+        return {}
+    }
+
+    const normalized = {}
+    for (const [key, value] of Object.entries(values)) {
+        if (!key) continue
+        normalized[String(key)] = value == null ? "" : String(value)
+    }
+
+    return normalized
+}
+
 function queueCommand(type, userId, payload = {}) {
     const target = getPlayersSnapshot().find(player => String(player.userId) === String(userId))
     if (!target) {
@@ -336,6 +350,7 @@ app.post("/game/sync", (req, res) => {
         displayName: String(player.displayName || player.username || "Unknown"),
         accountAge: Number(player.accountAge || 0),
         membershipType: String(player.membershipType || "None"),
+        displayValues: normalizeDisplayValues(player.displayValues),
         jobId: context.jobId,
         placeId: context.placeId,
         updatedAt: Date.now()

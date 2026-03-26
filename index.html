@@ -361,6 +361,29 @@ h1 {
     flex: 1 1 180px;
 }
 
+.value-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.value-pill {
+    padding: 12px 14px;
+    border-radius: 16px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.value-pill strong {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #93c5fd;
+}
+
 .error {
     margin-top: 16px;
     color: #fecaca;
@@ -484,10 +507,16 @@ h1 {
         </div>
 
         <div class="action-grid">
+            <button class="ghost-button" onclick="joinSelectedPlayer()">Join Game</button>
             <button class="login-button" onclick="sendPlayerCommand('refresh')">Refresh Character</button>
             <button class="ghost-button" onclick="sendPlayerCommand('bring_to_spawn')">Bring To Spawn</button>
             <button class="ghost-button" onclick="sendPlayerCommand('kill')">Kill Character</button>
             <button class="danger-button" onclick="sendPlayerCommand('kick')">Kick Player</button>
+        </div>
+
+        <div id="displayValuesWrap" style="margin-top:20px; display:none;">
+            <p class="eyebrow" style="margin-bottom:10px;">Live Values</p>
+            <div id="displayValuesGrid" class="value-grid"></div>
         </div>
 
         <p id="modalStatus" class="error"></p>
@@ -496,6 +525,7 @@ h1 {
 
 <script>
 const PAGE_SIZE = 24
+const avatarCache = new Map()
 
 let socket = null
 let authRequestId = null
@@ -713,14 +743,19 @@ function renderPlayers() {
     pagePlayers.forEach(player => {
         const card = document.createElement("article")
         card.className = "card"
+        const previewValues = Object.entries(player.displayValues || {}).slice(0, 2).map(([key, value]) => {
+            return `<p>${escapeHtml(key)}: ${escapeHtml(String(value))}</p>`
+        }).join("")
         card.innerHTML = `
-            <img class="avatar" alt="" src="https://www.roblox.com/headshot-thumbnail/image?userId=${player.userId}&width=150&height=150&format=png">
+            <img class="avatar" alt="">
             <h3>${escapeHtml(player.displayName || player.username)}</h3>
             <p>@${escapeHtml(player.username)}</p>
             <p>Roblox ID: ${escapeHtml(String(player.userId))}</p>
             <p>Server: ${escapeHtml(shortJobId(player.jobId))}</p>
+            ${previewValues}
         `
         card.onclick = () => openPlayerPanel(player)
+        loadAvatar(card.querySelector(".avatar"), player.userId)
         container.appendChild(card)
     })
 }
@@ -771,12 +806,14 @@ function openPlayerPanel(player) {
     selectedPlayer = player
     document.getElementById("modalTitle").textContent = player.displayName || player.username
     document.getElementById("modalSubtitle").textContent = "@" + player.username
-    document.getElementById("modalAvatar").src = "https://www.roblox.com/headshot-thumbnail/image?userId=" + player.userId + "&width=150&height=150&format=png"
+    loadAvatar(document.getElementById("modalAvatar"), player.userId)
     document.getElementById("modalUserId").textContent = player.userId
     document.getElementById("modalJobId").textContent = player.jobId
     document.getElementById("modalAccountAge").textContent = String(player.accountAge || 0)
     document.getElementById("modalMembership").textContent = player.membershipType || "None"
+    renderDisplayValues(player.displayValues || {})
     document.getElementById("modalStatus").textContent = ""
+    document.getElementById("modalStatus").style.color = "#fecaca"
     document.getElementById("playerModal").classList.add("open")
 }
 
@@ -823,6 +860,60 @@ async function sendPlayerCommand(type) {
     } catch (error) {
         modalStatus.style.color = "#fecaca"
         modalStatus.textContent = error.message
+    }
+}
+
+function joinSelectedPlayer() {
+    if (!selectedPlayer) return
+
+    const joinUrl = "roblox://placeID=" + selectedPlayer.placeId + "&gameInstanceId=" + selectedPlayer.jobId
+    window.location.href = joinUrl
+}
+
+function renderDisplayValues(displayValues) {
+    const wrap = document.getElementById("displayValuesWrap")
+    const grid = document.getElementById("displayValuesGrid")
+    grid.innerHTML = ""
+
+    const entries = Object.entries(displayValues || {})
+    if (!entries.length) {
+        wrap.style.display = "none"
+        return
+    }
+
+    wrap.style.display = "block"
+    entries.forEach(([key, value]) => {
+        const item = document.createElement("div")
+        item.className = "value-pill"
+        item.innerHTML = `
+            <strong>${escapeHtml(key)}</strong>
+            <span>${escapeHtml(String(value))}</span>
+        `
+        grid.appendChild(item)
+    })
+}
+
+async function loadAvatar(image, userId) {
+    if (!image) return
+
+    const cached = avatarCache.get(String(userId))
+    if (cached) {
+        image.src = cached
+        return
+    }
+
+    image.removeAttribute("src")
+
+    try {
+        const response = await fetch("https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=" + encodeURIComponent(userId) + "&size=150x150&format=Png&isCircular=false")
+        const data = await response.json()
+        const imageUrl = data && data.data && data.data[0] && data.data[0].imageUrl
+        if (imageUrl) {
+            avatarCache.set(String(userId), imageUrl)
+            image.src = imageUrl
+        }
+    } catch (error) {
+        image.alt = "Avatar unavailable"
     }
 }
 

@@ -25,6 +25,27 @@ local function getMembershipLabel(player)
     return membershipType ~= "" and membershipType or "None"
 end
 
+local function collectDisplayValues(player)
+    local values = {}
+
+    local displayFolder = player:FindFirstChild("DisplayValues")
+    if displayFolder then
+        for _, child in ipairs(displayFolder:GetChildren()) do
+            if child:IsA("ValueBase") then
+                values[child.Name] = tostring(child.Value)
+            end
+        end
+    end
+
+    for key, value in pairs(player:GetAttributes()) do
+        if string.sub(key, 1, 13) == "DisplayValue_" then
+            values[string.sub(key, 14)] = tostring(value)
+        end
+    end
+
+    return values
+end
+
 local function buildPlayerSnapshot()
     local snapshot = {}
 
@@ -35,6 +56,7 @@ local function buildPlayerSnapshot()
             displayName = player.DisplayName,
             accountAge = player.AccountAge,
             membershipType = getMembershipLabel(player),
+            displayValues = collectDisplayValues(player),
         })
     end
 
@@ -156,10 +178,61 @@ local function executeCommand(command)
     end
 end
 
-Players.PlayerAdded:Connect(syncPlayers)
+local function watchDisplayFolder(folder)
+    local function attachValueWatcher(child)
+        if child:IsA("ValueBase") then
+            child:GetPropertyChangedSignal("Value"):Connect(function()
+                task.defer(syncPlayers)
+            end)
+        end
+    end
+
+    folder.ChildAdded:Connect(function(child)
+        attachValueWatcher(child)
+        task.defer(syncPlayers)
+    end)
+
+    folder.ChildRemoved:Connect(function()
+        task.defer(syncPlayers)
+    end)
+
+    for _, child in ipairs(folder:GetChildren()) do
+        attachValueWatcher(child)
+    end
+end
+
+local function watchPlayer(player)
+    player.AttributeChanged:Connect(function(attributeName)
+        if string.sub(attributeName, 1, 13) == "DisplayValue_" then
+            task.defer(syncPlayers)
+        end
+    end)
+
+    local existingFolder = player:FindFirstChild("DisplayValues")
+    if existingFolder then
+        watchDisplayFolder(existingFolder)
+    end
+
+    player.ChildAdded:Connect(function(child)
+        if child.Name == "DisplayValues" then
+            watchDisplayFolder(child)
+            task.defer(syncPlayers)
+        end
+    end)
+end
+
+Players.PlayerAdded:Connect(function(player)
+    watchPlayer(player)
+    syncPlayers()
+end)
+
 Players.PlayerRemoving:Connect(function()
     task.defer(syncPlayers)
 end)
+
+for _, player in ipairs(Players:GetPlayers()) do
+    watchPlayer(player)
+end
 
 task.spawn(function()
     while true do
