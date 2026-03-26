@@ -4,6 +4,7 @@ const http = require("http")
 const path = require("path")
 const jwt = require("jsonwebtoken")
 const { Server } = require("socket.io")
+const commandDefinitions = require("./commands-config")
 
 const app = express()
 const server = http.createServer(app)
@@ -24,6 +25,7 @@ const SERVER_TTL_MS = 2 * 60 * 1000
 const pendingLogins = new Map()
 const gameServers = new Map()
 const commandQueues = new Map()
+const availableCommands = new Map(commandDefinitions.map(command => [String(command.type), command]))
 
 function parseCookies(req) {
     const cookieHeader = req.headers.cookie || ""
@@ -197,7 +199,8 @@ app.get("/", (req, res) => {
 app.get("/config", (req, res) => {
     res.json({
         authPlaceId: AUTH_PLACE_ID,
-        managedPlaceId: MANAGED_PLACE_ID
+        managedPlaceId: MANAGED_PLACE_ID,
+        commands: commandDefinitions
     })
 })
 
@@ -412,13 +415,18 @@ app.post("/admin/commands", (req, res) => {
     if (!ensureAdmin(req, res)) return
 
     const { type, userId, payload } = req.body || {}
-    const allowedTypes = new Set(["refresh", "kill", "bring_to_spawn", "kick"])
+    const commandConfig = availableCommands.get(String(type))
 
-    if (!allowedTypes.has(String(type))) {
+    if (!commandConfig) {
         return res.status(400).json({ error: "invalid command" })
     }
 
-    const result = queueCommand(type, userId, payload || {})
+    const mergedPayload = {
+        ...(commandConfig.payload || {}),
+        ...(payload || {})
+    }
+
+    const result = queueCommand(type, userId, mergedPayload)
     if (result.error) {
         return res.status(404).json({ error: result.error })
     }

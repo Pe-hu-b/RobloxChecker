@@ -508,10 +508,7 @@ h1 {
 
         <div class="action-grid">
             <button class="ghost-button" onclick="joinSelectedPlayer()">Join Game</button>
-            <button class="login-button" onclick="sendPlayerCommand('refresh')">Refresh Character</button>
-            <button class="ghost-button" onclick="sendPlayerCommand('bring_to_spawn')">Bring To Spawn</button>
-            <button class="ghost-button" onclick="sendPlayerCommand('kill')">Kill Character</button>
-            <button class="danger-button" onclick="sendPlayerCommand('kick')">Kick Player</button>
+            <div id="commandButtons" class="action-grid" style="flex: 1 1 100%;"></div>
         </div>
 
         <div id="displayValuesWrap" style="margin-top:20px; display:none;">
@@ -536,7 +533,8 @@ let currentPage = 1
 let selectedPlayer = null
 let config = {
     authPlaceId: "74772093792198",
-    managedPlaceId: ""
+    managedPlaceId: "",
+    commands: []
 }
 
 Promise.all([
@@ -570,6 +568,7 @@ function applyConfig() {
     document.getElementById("managedPlaceChip").textContent = config.managedPlaceId
         ? "Managed place: " + config.managedPlaceId
         : "Managed place not configured"
+    renderCommandButtons()
 }
 
 function showAuthView() {
@@ -834,10 +833,8 @@ async function sendPlayerCommand(type) {
     const modalStatus = document.getElementById("modalStatus")
     modalStatus.textContent = ""
 
-    const payload = {}
-    if (type === "kick") {
-        payload.reason = "Removed by admin panel"
-    }
+    const commandConfig = (config.commands || []).find(command => command.type === type)
+    const payload = commandConfig && commandConfig.payload ? commandConfig.payload : {}
 
     try {
         const response = await fetch("/admin/commands", {
@@ -918,13 +915,8 @@ async function loadAvatar(image, userId) {
 }
 
 function readableCommand(type) {
-    const labels = {
-        refresh: "Refresh Character",
-        bring_to_spawn: "Bring To Spawn",
-        kill: "Kill Character",
-        kick: "Kick Player"
-    }
-    return labels[type] || type
+    const commandConfig = (config.commands || []).find(command => command.type === type)
+    return commandConfig ? commandConfig.label : type
 }
 
 function shortJobId(jobId) {
@@ -938,6 +930,20 @@ function escapeHtml(value) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;")
+}
+
+function renderCommandButtons() {
+    const wrap = document.getElementById("commandButtons")
+    if (!wrap) return
+
+    wrap.innerHTML = ""
+    ;(config.commands || []).forEach(command => {
+        const button = document.createElement("button")
+        button.className = command.style || "ghost-button"
+        button.textContent = command.label || command.type
+        button.onclick = () => sendPlayerCommand(command.type)
+        wrap.appendChild(button)
+    })
 }
 </script>
 </body>
