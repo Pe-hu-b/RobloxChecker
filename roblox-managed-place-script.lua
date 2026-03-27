@@ -5,7 +5,7 @@ local RunService = game:GetService("RunService")
 local BASE_URL = "https://robloxchecker-45zx.onrender.com"
 local AUTH_KEY = "change-this-key"
 local MANAGED_PLACE_ID = 0
-local SYNC_INTERVAL = 10
+local SYNC_INTERVAL = 5
 local COMMAND_POLL_INTERVAL = 2
 local banRegistry = {}
 

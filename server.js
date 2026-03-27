@@ -20,7 +20,7 @@ const ALLOWED_ROBLOX_IDS = new Set(["1280770559", "1479207099"])
 const AUTH_PLACE_ID = String(process.env.ROBLOX_AUTH_PLACE_ID || "74772093792198")
 const MANAGED_PLACE_ID = String(process.env.ROBLOX_MANAGED_PLACE_ID || "")
 const AUTH_CODE_TTL_MS = 5 * 60 * 1000
-const SERVER_TTL_MS = 3 * 60 * 1000
+const SERVER_TTL_MS = 10 * 1000
 
 const pendingLogins = new Map()
 const gameServers = new Map()
@@ -108,11 +108,27 @@ function cleanupStaleServers() {
     }
 }
 
+function getLatestPlayersSnapshot() {
+    const latestPlayers = new Map()
+
+    for (const serverState of gameServers.values()) {
+        for (const player of serverState.players) {
+            const userId = String(player.userId)
+            const existing = latestPlayers.get(userId)
+
+            if (!existing || Number(player.updatedAt || 0) >= Number(existing.updatedAt || 0)) {
+                latestPlayers.set(userId, player)
+            }
+        }
+    }
+
+    return [...latestPlayers.values()]
+}
+
 function getPlayersSnapshot() {
     cleanupStaleServers()
 
-    return [...gameServers.values()]
-        .flatMap(serverState => serverState.players)
+    return getLatestPlayersSnapshot()
         .sort((left, right) => {
             const leftName = `${left.displayName || ""} ${left.username || ""}`.toLowerCase()
             const rightName = `${right.displayName || ""} ${right.username || ""}`.toLowerCase()
@@ -347,6 +363,7 @@ app.post("/game/sync", (req, res) => {
         return res.status(400).json({ error: "players must be an array" })
     }
 
+    const updatedAt = Date.now()
     const normalizedPlayers = players.map(player => ({
         userId: String(player.userId),
         username: String(player.username || "Unknown"),
@@ -356,13 +373,13 @@ app.post("/game/sync", (req, res) => {
         displayValues: normalizeDisplayValues(player.displayValues),
         jobId: context.jobId,
         placeId: context.placeId,
-        updatedAt: Date.now()
+        updatedAt
     }))
 
     gameServers.set(context.jobId, {
         jobId: context.jobId,
         placeId: context.placeId,
-        seenAt: Date.now(),
+        seenAt: updatedAt,
         players: normalizedPlayers
     })
 
